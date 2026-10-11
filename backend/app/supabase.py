@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 import httpx
 from supabase import Client, create_client
 
@@ -22,8 +20,8 @@ def get_supabase_credentials(settings: Settings) -> tuple[str, str]:
     )
 
 
-@lru_cache
 def get_supabase_client() -> Client:
+    """Create an isolated client so auth sessions cannot leak between requests."""
     url, publishable_key = get_supabase_credentials(get_settings())
     return create_client(url, publishable_key)
 
