@@ -140,3 +140,77 @@ Authorization: Bearer {access_token}
 
 오늘 운세는 한국 날짜 기준으로 사용자마다 하루에 하나만 저장한다. 고민 입력과
 맞춤 해석 결과는 저장하지 않는다.
+
+## 친구 운세 API
+
+친구 운세도 인증 헤더가 필요하다. 이름·별명과 관계는 Android 화면에서만
+사용하며 API에 보내지 않는다.
+
+| 메서드 | 경로 | 용도 |
+| --- | --- | --- |
+| `POST` | `/fortune/friend/today` | 친구 오늘 운세 생성 |
+| `POST` | `/fortune/friend/interpret` | 친구 상황 맞춤 해석 |
+
+친구 운세 요청 예시:
+
+```json
+{
+  "birth_date": "1998-03-21",
+  "calendar_type": "SOLAR",
+  "is_leap_month": null,
+  "birth_time": null,
+  "gender": null
+}
+```
+
+친구 운세 응답 예시:
+
+```json
+{
+  "fortune_date": "2026-10-12",
+  "headline": "준비한 만큼 자신감이 빛나는 날",
+  "total_comment": "오늘은 익숙한 사람의 응원이 큰 힘이 되는 날이에요.",
+  "total_score": 82,
+  "lucky_number": 3,
+  "lucky_color": "하늘",
+  "support_action": "먼저 연락하기"
+}
+```
+
+친구 맞춤 해석 요청 예시:
+
+```json
+{
+  "profile": {
+    "birth_date": "1998-03-21",
+    "calendar_type": "SOLAR",
+    "is_leap_month": null,
+    "birth_time": null,
+    "gender": null
+  },
+  "fortune": {
+    "fortune_date": "2026-10-12",
+    "headline": "준비한 만큼 자신감이 빛나는 날",
+    "total_comment": "오늘은 익숙한 사람의 응원이 큰 힘이 되는 날이에요.",
+    "total_score": 82,
+    "lucky_number": 3,
+    "lucky_color": "하늘",
+    "support_action": "먼저 연락하기"
+  },
+  "concern": {
+    "category": "전체",
+    "situation": "중요한 면접을 앞둔 친구에게 자신감을 주고 싶어요."
+  }
+}
+```
+
+친구 맞춤 해석 응답은 내 고민 해석과 같은 형식을 사용한다.
+
+```json
+{
+  "day_message": "지금까지 쌓아온 준비가 친구의 가장 단단한 행운이에요.",
+  "action_advice": "친구가 스스로의 노력을 믿을 수 있도록 응원해주세요."
+}
+```
+
+친구 정보, 친구 운세, 상황과 해석 결과는 DB에 저장하지 않는다.

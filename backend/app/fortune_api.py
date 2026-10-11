@@ -16,6 +16,13 @@ from app.fortune import (
     ProfileNotFoundError,
     SupabaseFortuneRepository,
 )
+from app.friend_fortune import (
+    FriendFortune,
+    FriendFortuneService,
+    FriendInterpretationRequest,
+    FriendProfileInput,
+    OpenAIFriendFortuneGenerator,
+)
 from app.supabase import get_supabase_client
 
 
@@ -88,6 +95,24 @@ def get_fortune_request_context(
     )
 
 
+def get_friend_fortune_service(
+    auth: AuthenticatedSupabase = Depends(get_authenticated_supabase),
+    settings: Settings = Depends(get_settings),
+) -> FriendFortuneService:
+    del auth
+    if settings.openai_api_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="운세 생성 서비스가 설정되지 않았습니다.",
+        )
+
+    openai_client = OpenAIFortuneGenerator(
+        api_key=settings.openai_api_key.get_secret_value(),
+        model=settings.openai_model,
+    )
+    return FriendFortuneService(OpenAIFriendFortuneGenerator(openai_client))
+
+
 def handle_fortune_error(error: FortuneError) -> None:
     if isinstance(error, ProfileNotFoundError):
         raise HTTPException(
@@ -122,5 +147,27 @@ def interpret_concern(
 ) -> ConcernInterpretation:
     try:
         return context.service.interpret_concern(context.user_id, request)
+    except FortuneError as error:
+        handle_fortune_error(error)
+
+
+@router.post("/friend/today", response_model=FriendFortune)
+def create_friend_fortune(
+    request: FriendProfileInput,
+    service: FriendFortuneService = Depends(get_friend_fortune_service),
+) -> FriendFortune:
+    try:
+        return service.create_fortune(request)
+    except FortuneError as error:
+        handle_fortune_error(error)
+
+
+@router.post("/friend/interpret", response_model=ConcernInterpretation)
+def interpret_friend_concern(
+    request: FriendInterpretationRequest,
+    service: FriendFortuneService = Depends(get_friend_fortune_service),
+) -> ConcernInterpretation:
+    try:
+        return service.interpret(request)
     except FortuneError as error:
         handle_fortune_error(error)

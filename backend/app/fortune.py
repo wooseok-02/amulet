@@ -273,7 +273,7 @@ class OpenAIFortuneGenerator:
             ),
             "gender": profile.gender,
         }
-        result = self._request_structured_output(
+        result = self.request_structured_output(
             schema_name="daily_fortune",
             schema=self.DAILY_SCHEMA,
             instructions=(
@@ -302,7 +302,7 @@ class OpenAIFortuneGenerator:
             "concern": concern.concern,
             "mood": concern.mood,
         }
-        result = self._request_structured_output(
+        result = self.request_structured_output(
             schema_name="concern_interpretation",
             schema=self.INTERPRETATION_SCHEMA,
             instructions=(
@@ -318,7 +318,7 @@ class OpenAIFortuneGenerator:
         except ValidationError as error:
             raise FortuneGenerationError("고민 해석 결과 형식이 올바르지 않습니다.") from error
 
-    def _request_structured_output(
+    def request_structured_output(
         self,
         *,
         schema_name: str,
