@@ -162,3 +162,53 @@ def test_openai_friend_fortune_excludes_display_only_information() -> None:
     result = generator.generate_friend_fortune(friend_profile(), TODAY)
 
     assert result == friend_fortune()
+
+
+def test_openai_friend_interpretation_sends_transient_context() -> None:
+    expected = ConcernInterpretation(
+        day_message="지금까지 쌓아온 준비가 친구의 가장 단단한 행운이에요.",
+        action_advice="친구가 스스로의 노력을 믿을 수 있도록 응원해주세요.",
+    )
+    response_body = {
+        "output": [
+            {
+                "type": "message",
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": json.dumps(expected.model_dump(), ensure_ascii=False),
+                    }
+                ],
+            }
+        ]
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["model"] == "gpt-6-luna"
+        assert payload["store"] is False
+        assert (
+            payload["text"]["format"]["name"]
+            == "friend_concern_interpretation"
+        )
+        user_data = json.loads(payload["input"][1]["content"][0]["text"])
+        assert user_data["profile"]["birth_date"] == "1998-03-21"
+        assert user_data["fortune"]["total_score"] == 82
+        assert user_data["concern"]["category"] == "전체"
+        assert "mood" not in user_data["concern"]
+        assert "name" not in user_data["profile"]
+        assert "relationship" not in user_data["profile"]
+        return httpx.Response(200, json=response_body)
+
+    client = OpenAIFortuneGenerator(
+        api_key="test-key",
+        model="gpt-6-luna",
+        transport=httpx.MockTransport(handler),
+    )
+    generator = OpenAIFriendFortuneGenerator(client)
+
+    result = generator.generate_friend_interpretation(
+        friend_interpretation_request()
+    )
+
+    assert result == expected

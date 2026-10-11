@@ -273,3 +273,52 @@ def test_openai_generator_requests_structured_daily_fortune() -> None:
     result = generator.generate_daily_fortune(profile(), TODAY)
 
     assert result == fortune()
+
+
+def test_openai_generator_requests_structured_concern_interpretation() -> None:
+    expected = ConcernInterpretation(
+        day_message="진심 있게 답하는 태도가 빛나는 날이에요.",
+        action_advice="첫 문장을 소리 내어 한 번 연습해보세요.",
+    )
+    response_body = {
+        "output": [
+            {
+                "type": "message",
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": json.dumps(expected.model_dump(), ensure_ascii=False),
+                    }
+                ],
+            }
+        ]
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["model"] == "gpt-6-luna"
+        assert payload["store"] is False
+        assert payload["text"]["format"]["name"] == "concern_interpretation"
+        user_data = json.loads(payload["input"][1]["content"][0]["text"])
+        assert user_data["category"] == "취업"
+        assert user_data["mood"] == "불안해요"
+        assert user_data["concern"] == concern().concern
+        assert user_data["today_fortune"]["total_score"] == 78
+        assert user_data["profile"]["birth_date"] == "1990-01-02"
+        assert "id" not in user_data["profile"]
+        assert "name" not in user_data["profile"]
+        return httpx.Response(200, json=response_body)
+
+    generator = OpenAIFortuneGenerator(
+        api_key="test-key",
+        model="gpt-6-luna",
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = generator.generate_concern_interpretation(
+        profile(),
+        fortune(),
+        concern(),
+    )
+
+    assert result == expected
