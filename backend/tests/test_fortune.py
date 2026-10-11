@@ -62,6 +62,7 @@ def concern() -> ConcernInput:
     )
 
 
+# 당일 운세가 없으면 프로필 조회, 생성, DB 저장을 순서대로 실행하는지 확인한다.
 def test_daily_fortune_reads_profile_generates_and_requests_database_save() -> None:
     repository = Mock()
     generator = Mock()
@@ -80,6 +81,7 @@ def test_daily_fortune_reads_profile_generates_and_requests_database_save() -> N
     repository.save_daily_fortune.assert_called_once_with("user-123", fortune())
 
 
+# 당일 운세가 이미 있으면 OpenAI를 호출하지 않고 저장된 결과를 재사용하는지 확인한다.
 def test_daily_fortune_reuses_same_day_database_value() -> None:
     repository = Mock()
     generator = Mock()
@@ -94,6 +96,7 @@ def test_daily_fortune_reuses_same_day_database_value() -> None:
     generator.generate_daily_fortune.assert_not_called()
 
 
+# 사용자 프로필이 없으면 운세 생성을 중단하고 오류를 내는지 확인한다.
 def test_daily_fortune_fails_when_profile_is_missing() -> None:
     repository = Mock()
     repository.get_daily_fortune.return_value = None
@@ -104,6 +107,7 @@ def test_daily_fortune_fails_when_profile_is_missing() -> None:
         service.get_daily_fortune("missing-user")
 
 
+# 고민 해석에 프로필, 오늘 운세, 고민 입력을 모두 전달하는지 확인한다.
 def test_concern_interpretation_uses_profile_daily_fortune_and_input() -> None:
     repository = Mock()
     generator = Mock()
@@ -135,6 +139,7 @@ def test_concern_interpretation_uses_profile_daily_fortune_and_input() -> None:
         {"concern": "가" * 201},
     ],
 )
+# 허용되지 않은 고민 분야, 마음 상태, 글자 수 입력을 거부하는지 확인한다.
 def test_concern_rejects_invalid_input(overrides: dict[str, str]) -> None:
     values = {
         "category": "전체",
@@ -147,6 +152,7 @@ def test_concern_rejects_invalid_input(overrides: dict[str, str]) -> None:
         ConcernInput(**values)
 
 
+# 생성된 오늘 운세를 올바른 필드로 Supabase에 INSERT하는지 확인한다.
 def test_supabase_repository_sends_daily_fortune_insert() -> None:
     query = Mock()
     query.insert.return_value = query
@@ -166,6 +172,7 @@ def test_supabase_repository_sends_daily_fortune_insert() -> None:
     assert result == fortune()
 
 
+# 동시 생성으로 중복 INSERT가 발생하면 먼저 저장된 운세를 반환하는지 확인한다.
 def test_supabase_repository_reuses_saved_value_after_duplicate_insert() -> None:
     query = Mock()
     query.insert.return_value = query
@@ -188,6 +195,7 @@ def test_supabase_repository_reuses_saved_value_after_duplicate_insert() -> None
     repository.get_daily_fortune.assert_called_once_with("user-123", TODAY)
 
 
+# 사용자 ID로 본인의 사주 프로필을 조회하는지 확인한다.
 def test_supabase_repository_reads_profile_by_user_id() -> None:
     query = Mock()
     query.select.return_value = query
@@ -207,6 +215,7 @@ def test_supabase_repository_reads_profile_by_user_id() -> None:
     assert result == profile()
 
 
+# 사용자 ID와 날짜로 해당 날짜의 운세를 조회하는지 확인한다.
 def test_supabase_repository_reads_fortune_by_user_and_date() -> None:
     query = Mock()
     query.select.return_value = query
@@ -229,6 +238,7 @@ def test_supabase_repository_reads_fortune_by_user_and_date() -> None:
     assert result == fortune()
 
 
+# 오늘 운세 OpenAI 요청과 Structured Outputs 응답 파싱을 확인한다.
 def test_openai_generator_requests_structured_daily_fortune() -> None:
     response_body = {
         "output": [
@@ -275,6 +285,7 @@ def test_openai_generator_requests_structured_daily_fortune() -> None:
     assert result == fortune()
 
 
+# 내 고민 해석 OpenAI 요청 내용과 두 줄 응답 파싱을 확인한다.
 def test_openai_generator_requests_structured_concern_interpretation() -> None:
     expected = ConcernInterpretation(
         day_message="진심 있게 답하는 태도가 빛나는 날이에요.",

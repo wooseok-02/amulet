@@ -31,6 +31,7 @@ def fortune_context() -> tuple[Mock, FortuneRequestContext]:
     app.dependency_overrides.clear()
 
 
+# 오늘 운세 API가 Bearer Token 없는 요청을 거부하는지 확인한다.
 def test_today_fortune_requires_bearer_token() -> None:
     response = client.get("/fortune/today")
 
@@ -38,6 +39,7 @@ def test_today_fortune_requires_bearer_token() -> None:
     assert response.json() == {"detail": AUTH_REQUIRED_MESSAGE}
 
 
+# 오늘 운세 API가 유효하지 않은 Access Token을 거부하는지 확인한다.
 def test_today_fortune_rejects_invalid_access_token() -> None:
     supabase = Mock()
     supabase.auth.get_user.side_effect = AuthApiError(
@@ -57,6 +59,7 @@ def test_today_fortune_rejects_invalid_access_token() -> None:
     assert response.json() == {"detail": INVALID_ACCESS_TOKEN_MESSAGE}
 
 
+# 오늘 운세 API가 서비스의 운세 결과를 그대로 반환하는지 확인한다.
 def test_today_fortune_returns_service_result(
     fortune_context: tuple[Mock, FortuneRequestContext],
 ) -> None:
@@ -71,6 +74,7 @@ def test_today_fortune_returns_service_result(
     service.get_daily_fortune.assert_called_once_with("user-123")
 
 
+# 고민 해석 API가 해석과 행동 조언 두 문장을 반환하는지 확인한다.
 def test_interpret_concern_returns_two_lines(
     fortune_context: tuple[Mock, FortuneRequestContext],
 ) -> None:
@@ -91,6 +95,7 @@ def test_interpret_concern_returns_two_lines(
     service.interpret_concern.assert_called_once_with("user-123", concern())
 
 
+# 검증된 Access Token을 Supabase PostgREST 요청에도 설정하는지 확인한다.
 def test_authenticated_request_sets_token_on_postgrest() -> None:
     supabase = Mock()
     supabase.auth.get_user.return_value = SimpleNamespace(

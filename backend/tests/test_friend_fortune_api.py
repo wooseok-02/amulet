@@ -25,6 +25,7 @@ def friend_service() -> Mock:
     app.dependency_overrides.clear()
 
 
+# 친구 운세 API가 로그인하지 않은 요청을 거부하는지 확인한다.
 def test_friend_fortune_requires_login() -> None:
     response = client.post(
         "/fortune/friend/today",
@@ -35,6 +36,7 @@ def test_friend_fortune_requires_login() -> None:
     assert response.json() == {"detail": AUTH_REQUIRED_MESSAGE}
 
 
+# 친구 운세 API가 세부 운 점수 없이 생성 결과를 반환하는지 확인한다.
 def test_friend_fortune_api_returns_generated_result(friend_service: Mock) -> None:
     friend_service.create_fortune.return_value = friend_fortune()
 
@@ -49,6 +51,7 @@ def test_friend_fortune_api_returns_generated_result(friend_service: Mock) -> No
     friend_service.create_fortune.assert_called_once_with(friend_profile())
 
 
+# 친구 해석 API가 해석과 행동 조언 두 문장을 반환하는지 확인한다.
 def test_friend_interpretation_api_returns_two_lines(friend_service: Mock) -> None:
     expected = ConcernInterpretation(
         day_message="지금까지 쌓아온 준비가 친구의 가장 단단한 행운이에요.",
@@ -66,6 +69,7 @@ def test_friend_interpretation_api_returns_two_lines(friend_service: Mock) -> No
     friend_service.interpret.assert_called_once_with(friend_interpretation_request())
 
 
+# 친구 API가 화면 표시 전용인 이름과 관계 필드를 거부하는지 확인한다.
 def test_friend_api_rejects_display_only_fields(friend_service: Mock) -> None:
     payload = friend_profile().model_dump(mode="json")
     payload["name"] = "행운이"

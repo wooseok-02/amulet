@@ -10,6 +10,7 @@ from app.supabase import (
 )
 
 
+# Supabase URL과 Publishable Key가 모두 필요함을 확인한다.
 def test_get_supabase_credentials_requires_both_values() -> None:
     settings = Settings(_env_file=None)
 
@@ -17,6 +18,7 @@ def test_get_supabase_credentials_requires_both_values() -> None:
         get_supabase_credentials(settings)
 
 
+# Supabase 연결 확인이 올바른 인증 설정 주소와 API Key를 사용하는지 확인한다.
 def test_check_supabase_connection_calls_auth_settings() -> None:
     settings = Settings(
         _env_file=None,

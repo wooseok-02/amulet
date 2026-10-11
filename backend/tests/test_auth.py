@@ -61,6 +61,7 @@ def signup_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
+# 회원가입 성공 시 세션을 반환하고 프로필 정보를 Supabase에 전달하는지 확인한다.
 def test_signup_returns_session_and_sends_profile_metadata(mocked_auth: Mock) -> None:
     mocked_auth.sign_up.return_value = auth_response()
 
@@ -105,6 +106,7 @@ def test_signup_returns_session_and_sends_profile_metadata(mocked_auth: Mock) ->
         ({"calendar_type": "LUNAR", "is_leap_month": None}, "음력 생년월일은 윤달 여부가 필요합니다."),
     ],
 )
+# 잘못된 회원가입 입력을 각 검증 규칙에 맞는 메시지로 거부하는지 확인한다.
 def test_signup_rejects_invalid_input(
     mocked_auth: Mock,
     overrides: dict[str, object],
@@ -117,6 +119,7 @@ def test_signup_rejects_invalid_input(
     mocked_auth.sign_up.assert_not_called()
 
 
+# 중복 이메일 오류를 HTTP 409 응답으로 변환하는지 확인한다.
 def test_signup_maps_duplicate_email_to_conflict(mocked_auth: Mock) -> None:
     mocked_auth.sign_up.side_effect = AuthApiError(
         "User already registered",
@@ -130,6 +133,7 @@ def test_signup_maps_duplicate_email_to_conflict(mocked_auth: Mock) -> None:
     assert response.json() == {"detail": DUPLICATE_EMAIL_MESSAGE}
 
 
+# 회원가입 직후 세션이 생성되지 않으면 오류를 반환하는지 확인한다.
 def test_signup_requires_immediate_session(mocked_auth: Mock) -> None:
     mocked_auth.sign_up.return_value = SimpleNamespace(
         user=SimpleNamespace(id="user-123", email="user@example.com"),
@@ -142,6 +146,7 @@ def test_signup_requires_immediate_session(mocked_auth: Mock) -> None:
     assert response.json() == {"detail": AUTH_SESSION_MISSING_MESSAGE}
 
 
+# 정상 로그인 시 인증 세션을 반환하는지 확인한다.
 def test_login_returns_session(mocked_auth: Mock) -> None:
     mocked_auth.sign_in_with_password.return_value = auth_response()
 
@@ -157,6 +162,7 @@ def test_login_returns_session(mocked_auth: Mock) -> None:
     )
 
 
+# 로그인 실패 원인과 관계없이 동일한 오류 메시지를 반환하는지 확인한다.
 def test_login_uses_one_message_for_all_auth_failures(mocked_auth: Mock) -> None:
     mocked_auth.sign_in_with_password.side_effect = AuthApiError(
         "Invalid login credentials",
@@ -173,6 +179,7 @@ def test_login_uses_one_message_for_all_auth_failures(mocked_auth: Mock) -> None
     assert response.json() == {"detail": INVALID_LOGIN_MESSAGE}
 
 
+# 유효한 갱신 토큰으로 새 인증 세션을 발급하는지 확인한다.
 def test_refresh_returns_reissued_session(mocked_auth: Mock) -> None:
     mocked_auth.refresh_session.return_value = auth_response(
         access_token="new-access-token",
@@ -190,6 +197,7 @@ def test_refresh_returns_reissued_session(mocked_auth: Mock) -> None:
     mocked_auth.refresh_session.assert_called_once_with("old-refresh-token")
 
 
+# 유효하지 않은 갱신 토큰을 HTTP 401로 거부하는지 확인한다.
 def test_refresh_rejects_invalid_token(mocked_auth: Mock) -> None:
     mocked_auth.refresh_session.side_effect = AuthApiError(
         "Invalid Refresh Token",

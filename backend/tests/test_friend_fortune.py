@@ -55,6 +55,7 @@ def friend_interpretation_request() -> FriendInterpretationRequest:
     )
 
 
+# 친구 운세를 DB 저장소 없이 임시 데이터로 생성하는지 확인한다.
 def test_friend_service_generates_without_repository() -> None:
     generator = Mock()
     generator.generate_friend_fortune.return_value = friend_fortune()
@@ -66,6 +67,7 @@ def test_friend_service_generates_without_repository() -> None:
     generator.generate_friend_fortune.assert_called_once_with(friend_profile(), TODAY)
 
 
+# 임시 친구 정보, 운세, 상황을 이용해 해석하는지 확인한다.
 def test_friend_service_interprets_transient_request() -> None:
     generator = Mock()
     expected = ConcernInterpretation(
@@ -83,6 +85,7 @@ def test_friend_service_interprets_transient_request() -> None:
     )
 
 
+# 친구 정보가 음력, 윤달, 출생 시간, 성별 입력을 지원하는지 확인한다.
 def test_friend_profile_supports_lunar_leap_month() -> None:
     result = friend_profile(
         calendar_type="lunar",
@@ -104,6 +107,7 @@ def test_friend_profile_supports_lunar_leap_month() -> None:
         {"gender": "OTHER"},
     ],
 )
+# 잘못된 친구 생년월일, 달력 유형, 성별 입력을 거부하는지 확인한다.
 def test_friend_profile_rejects_invalid_input(values: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         friend_profile(**values)
@@ -117,11 +121,13 @@ def test_friend_profile_rejects_invalid_input(values: dict[str, object]) -> None
         {"category": "전체", "situation": "가" * 201},
     ],
 )
+# 허용되지 않은 상황 분야와 잘못된 상황 글자 수를 거부하는지 확인한다.
 def test_friend_concern_rejects_invalid_input(values: dict[str, str]) -> None:
     with pytest.raises(ValidationError):
         FriendConcernInput(**values)
 
 
+# 친구 운세 OpenAI 요청에서 이름과 관계를 제외하고 응답을 파싱하는지 확인한다.
 def test_openai_friend_fortune_excludes_display_only_information() -> None:
     response_body = {
         "output": [
@@ -164,6 +170,7 @@ def test_openai_friend_fortune_excludes_display_only_information() -> None:
     assert result == friend_fortune()
 
 
+# 친구 해석 OpenAI 요청에 임시 문맥만 전달하고 두 줄 응답을 파싱하는지 확인한다.
 def test_openai_friend_interpretation_sends_transient_context() -> None:
     expected = ConcernInterpretation(
         day_message="지금까지 쌓아온 준비가 친구의 가장 단단한 행운이에요.",
