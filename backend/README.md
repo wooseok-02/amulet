@@ -20,9 +20,12 @@ Supabase 프로젝트의 URL과 Publishable key를 `.env`에 설정한다.
 ```dotenv
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+OPENAI_API_KEY=sk-your-key
+OPENAI_MODEL=gpt-6-luna
 ```
 
 Secret key와 데이터베이스 비밀번호는 현재 연결에 사용하지 않는다.
+OpenAI API Key는 Android 앱에 넣지 않고 백엔드 환경 변수로만 관리한다.
 
 ## 개발 서버 실행
 
@@ -83,3 +86,57 @@ pytest
 Android 앱은 로그인 또는 회원가입 성공 시 두 토큰을 안전한 로컬 저장소에
 저장한다. `access_token` 만료 시 저장한 `refresh_token`을 `/auth/refresh`에
 전달하고, 응답으로 받은 두 토큰을 모두 교체한다.
+
+## 오늘 운세 API
+
+두 API 모두 아래 인증 헤더가 필요하다.
+
+```http
+Authorization: Bearer {access_token}
+```
+
+| 메서드 | 경로 | 용도 |
+| --- | --- | --- |
+| `GET` | `/fortune/today` | 오늘 운세 조회 또는 최초 생성 |
+| `POST` | `/fortune/interpret` | 고민과 오늘 운세를 이용한 맞춤 해석 |
+
+오늘 운세 응답 예시:
+
+```json
+{
+  "fortune_date": "2026-10-12",
+  "headline": "흐름이 천천히 열리는 날",
+  "total_comment": "서두르기보다 준비한 것을 차분히 보여주세요.",
+  "total_score": 78,
+  "love_score": 72,
+  "money_score": 68,
+  "career_score": 81,
+  "study_score": 86,
+  "health_score": 74,
+  "lucky_number": 7,
+  "lucky_color": "초록",
+  "today_action": "질문 한 번 더"
+}
+```
+
+맞춤 해석 요청 예시:
+
+```json
+{
+  "category": "취업",
+  "concern": "첫 면접을 앞두고 준비한 말을 잘 전달할지 걱정돼요.",
+  "mood": "불안해요"
+}
+```
+
+맞춤 해석 응답 예시:
+
+```json
+{
+  "day_message": "진심 있게 답하는 태도가 빛나는 날이에요.",
+  "action_advice": "첫 문장을 소리 내어 한 번 연습해보세요."
+}
+```
+
+오늘 운세는 한국 날짜 기준으로 사용자마다 하루에 하나만 저장한다. 고민 입력과
+맞춤 해석 결과는 저장하지 않는다.

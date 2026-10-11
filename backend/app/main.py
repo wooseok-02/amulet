@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth import router as auth_router
 from app.config import get_settings
+from app.fortune_api import router as fortune_router
 from app.supabase import SupabaseConfigurationError, check_supabase_connection
 
 settings = get_settings()
@@ -14,6 +15,7 @@ app = FastAPI(
     debug=settings.debug,
 )
 app.include_router(auth_router)
+app.include_router(fortune_router)
 
 
 @app.exception_handler(RequestValidationError)

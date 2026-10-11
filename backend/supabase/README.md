@@ -7,12 +7,25 @@
   (`lock_down_profile_trigger_functions`)
 - `migrations/20261012002000_restrict_profiles_table_privileges.sql`
   (`restrict_profiles_table_privileges`)
+- `migrations/202610120001_create_daily_fortunes.sql`
+  (`create_daily_fortunes`)
+- `migrations/202610120002_restrict_daily_fortunes_privileges.sql`
+  (`restrict_daily_fortunes_privileges`)
+- `migrations/202610120003_make_daily_fortunes_immutable.sql`
+  (`make_daily_fortunes_immutable`)
+- `migrations/202610120004_drop_daily_fortunes_update_policy.sql`
+  (`drop_daily_fortunes_update_policy`)
 
 These migrations were applied through Supabase MCP. They create
 `public.profiles`, its RLS policies, the
 `updated_at` trigger, and the `auth.users` trigger that creates a profile from
 signup metadata. They also revoke direct access to the trigger functions and
 limit the `authenticated` table grants to `SELECT` and `UPDATE`.
+
+The daily fortune migrations create `public.daily_fortunes` with one row per
+user and Korea calendar date. RLS allows authenticated users to select and
+insert only their own rows. Existing rows cannot be updated or deleted through
+the authenticated role.
 
 ## Preflight
 

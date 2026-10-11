@@ -5,6 +5,7 @@
 ```mermaid
 erDiagram
     AUTH_USERS ||--|| PROFILES : "id"
+    PROFILES ||--o{ DAILY_FORTUNES : "user_id"
 
     AUTH_USERS {
         uuid id PK "Supabase Auth 관리"
@@ -24,6 +25,24 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
+
+    DAILY_FORTUNES {
+        uuid id PK
+        uuid user_id FK
+        date fortune_date "사용자별 하루 1개"
+        text headline
+        text total_comment
+        smallint total_score "0~100"
+        smallint love_score "0~100"
+        smallint money_score "0~100"
+        smallint career_score "0~100"
+        smallint study_score "0~100"
+        smallint health_score "0~100"
+        smallint lucky_number "0~10"
+        text lucky_color
+        text today_action
+        timestamptz created_at
+    }
 ```
 
 `auth.users`는 Supabase Auth가 관리한다. 애플리케이션은 이 테이블에 직접 사용자를 추가하지 않는다.
@@ -42,3 +61,7 @@ erDiagram
 | `gender` | `MALE`, `FEMALE` |
 
 사용자는 RLS를 통해 자신의 프로필만 조회하고 수정할 수 있다. 프로필 생성은 `auth.users` 생성 Trigger만 담당한다.
+
+`public.daily_fortunes`는 사용자별 오늘 운세를 한국 날짜 기준으로 하루 하나만
+저장한다. 인증된 사용자는 자신의 운세만 조회하고 최초 저장할 수 있으며, 저장된
+운세는 수정하거나 삭제할 수 없다.

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     debug: bool = False
     supabase_url: HttpUrl | None = None
     supabase_publishable_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-6-luna"
 
     model_config = SettingsConfigDict(
         env_file=".env",
