@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,8 @@ class Settings(BaseSettings):
     app_name: str = "부꾸 API"
     app_env: Literal["development", "test", "production"] = "development"
     debug: bool = False
+    supabase_url: HttpUrl | None = None
+    supabase_publishable_key: SecretStr | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
