@@ -113,5 +113,7 @@ Authorization: Bearer {access_token}
 | 오늘 운세 조회·생성 | `GET` | `/fortune/today` |
 | 고민 맞춤 해석 | `POST` | `/fortune/interpret` |
 
-백엔드 내부 테스트와 운영 DB 스키마 적용을 완료했다. 실제 OpenAI 호출과 Android
-연동 테스트는 프론트 연동 단계에서 진행한다.
+백엔드 내부 테스트와 운영 DB 스키마 적용을 완료했다. 2026-10-14 가상 입력으로
+실제 OpenAI 생성 코드 호출(내 운세·고민 해석)을 확인했다. 인증·DB·Android를
+포함한 통합 테스트는 남아 있다. 상세 결과와 연결 체크리스트는
+[작업 진행사항](../WORK_PROGRESS.md)을 참고한다.
