@@ -176,6 +176,8 @@ class SupabaseFortuneRepository:
             )
         except APIError as error:
             raise FortuneError("오늘 운세를 불러오지 못했습니다.") from error
+        if response is None:
+            return None
         return DailyFortune.model_validate(response.data) if response.data else None
 
     def save_daily_fortune(

@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import date, time
 from typing import Literal
@@ -11,6 +12,7 @@ from app.supabase import get_supabase_client
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 INVALID_LOGIN_MESSAGE = "이메일 또는 비밀번호가 올바르지 않습니다."
 INVALID_SESSION_MESSAGE = "로그인 정보가 만료되었습니다. 다시 로그인해 주세요."
@@ -136,6 +138,12 @@ def build_session_response(response: AuthResponse) -> AuthSessionResponse:
     session = response.session
     user = response.user or (session.user if session is not None else None)
     if session is None or user is None or user.email is None:
+        logger.error(
+            "Supabase auth response has no usable session: session_present=%s user_present=%s email_present=%s",
+            session is not None,
+            user is not None,
+            user is not None and user.email is not None,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=AUTH_SESSION_MISSING_MESSAGE,
@@ -169,6 +177,12 @@ def signup(
             }
         )
     except AuthApiError as error:
+        logger.error(
+            "Supabase signup failed: status=%s code=%s message=%s",
+            error.status,
+            error.code,
+            error.message,
+        )
         if error.code in {"email_exists", "user_already_exists"}:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

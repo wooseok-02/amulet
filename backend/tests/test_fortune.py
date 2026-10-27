@@ -152,6 +152,20 @@ def test_concern_rejects_invalid_input(overrides: dict[str, str]) -> None:
         ConcernInput(**values)
 
 
+# 오늘 운세 조회 결과가 0건이면 새 운세 생성에 사용할 None을 반환한다.
+def test_supabase_repository_returns_none_when_daily_fortune_is_missing() -> None:
+    query = Mock()
+    query.select.return_value = query
+    query.eq.return_value = query
+    query.maybe_single.return_value = query
+    query.execute.return_value = None
+    client = Mock()
+    client.table.return_value = query
+    repository = SupabaseFortuneRepository(client)
+
+    assert repository.get_daily_fortune("user-123", TODAY) is None
+
+
 # 생성된 오늘 운세를 올바른 필드로 Supabase에 INSERT하는지 확인한다.
 def test_supabase_repository_sends_daily_fortune_insert() -> None:
     query = Mock()
