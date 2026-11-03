@@ -180,7 +180,7 @@ internal fun FriendFlow(model: AppModel) {
 internal fun FriendFortuneCard(fortune: JSONObject) {
     Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp,Brown)) {
         Row(Modifier.padding(18.dp),verticalAlignment=Alignment.CenterVertically){
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)){Eyebrow("FRIEND'S FORTUNE");Text(fortune.optString("headline"),fontFamily=Serif,fontSize=23.sp,lineHeight=34.sp)}
+            Column(Modifier.weight(1f).padding(end=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Eyebrow("FRIEND'S FORTUNE");Text(fortune.optString("headline"),fontFamily=Serif,fontSize=23.sp,lineHeight=34.sp)}
             Text(fortune.optInt("total_score").toString(),color=Red,fontFamily=Serif,fontSize=40.sp);Text("/100",fontSize=9.sp)
         }
         HorizontalDivider(color=Brown,thickness=.7.dp)
