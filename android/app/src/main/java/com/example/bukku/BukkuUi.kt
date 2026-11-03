@@ -2,6 +2,7 @@ package com.example.bukku
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,22 +27,23 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.json.JSONObject
 
-private val Cream = Color(0xFFFFF8E7)
-private val Brown = Color(0xFF50382B)
-private val Yellow = Color(0xFFF9CB49)
-private val Red = Color(0xFFD8472E)
-private val Green = Color(0xFFA4D65B)
-private val Serif = FontFamily(Font(R.font.noto_serif_kr))
+internal val Cream = Color(0xFFFFF8E7)
+internal val Brown = Color(0xFF50382B)
+internal val Yellow = Color(0xFFF9CB49)
+internal val Red = Color(0xFFD8472E)
+internal val Green = Color(0xFFA4D65B)
+internal val Serif = FontFamily(Font(R.font.noto_serif_kr))
 
 @Composable
 internal fun BukkuUi(model: AppModel) {
     var settings by remember { mutableStateOf(false) }
     var serverInput by remember { mutableStateOf(model.server) }
     var notice by remember { mutableStateOf("") }
+    BackHandler(enabled = model.editorStep > 0) { model.editorStep -= 1 }
     MaterialTheme(colorScheme = lightColorScheme(primary = Brown, background = Cream, surface = Color.White, onSurface = Brown, onBackground = Brown, error = Red)) {
         Scaffold(containerColor = Cream, modifier = Modifier.fillMaxSize().imePadding(),
             topBar = { Header { notice = "새로운 알림이 없습니다.\n알림 API 연결 전 예시 화면입니다." } },
-            bottomBar = { Navigation(model.page) { if (!model.busy) model.page = it } }) { padding ->
+            bottomBar = { Navigation(model.page) { model.navigate(it) } }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
                 if (model.preview) Row(Modifier.fillMaxWidth().background(Color(0xFFFFEFD0)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("디자인 미리보기 · 예시 데이터", Modifier.weight(1f), fontSize = 11.sp)
@@ -60,8 +62,10 @@ internal fun BukkuUi(model: AppModel) {
                         TextButton(onClick = { serverInput = model.server; settings = true }) { Text("서버 설정") }
                         TextButton(onClick = { model.logout() }) { Text("로그인 정보 지우기") }
                     }
+                    model.editorStep > 0 -> CharmEditor(model)
                     model.page == "account" -> Account(model) { serverInput = model.server; settings = true }
-                    model.page == "library" -> Library()
+                    model.page == "library" -> ArchiveScreen(model)
+                    model.friendMode -> FriendFlow(model)
                     else -> Home(model) { notice = it }
                 }
             }
@@ -103,13 +107,13 @@ private fun Navigation(page: String, select: (String) -> Unit) {
     }
 }
 
-private fun Modifier.dots() = drawBehind {
+internal fun Modifier.dots() = drawBehind {
     val gap = 8.dp.toPx(); var x = 4.dp.toPx()
     while (x < size.width) { var y = 4.dp.toPx(); while (y < size.height) { drawCircle(Brown.copy(alpha = .32f), .45.dp.toPx(), Offset(x, y)); y += gap }; x += gap }
 }
 
 @Composable
-private fun Eyebrow(text: String) { Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp) }
+internal fun Eyebrow(text: String) { Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp) }
 
 @Composable
 private fun Hero(account: Boolean, signup: Boolean = false) {
@@ -130,7 +134,7 @@ private fun Hero(account: Boolean, signup: Boolean = false) {
 }
 
 @Composable
-private fun Action(label: String, busy: Boolean, click: () -> Unit) {
+internal fun Action(label: String, busy: Boolean, click: () -> Unit) {
     Column {
     Button(onClick = click, enabled = !busy, shape = RectangleShape, contentPadding = PaddingValues(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Yellow, contentColor = Brown, disabledContainerColor = Yellow.copy(alpha = .5f), disabledContentColor = Brown),
@@ -143,7 +147,7 @@ private fun Action(label: String, busy: Boolean, click: () -> Unit) {
 }
 
 @Composable
-private fun Field(label: String, value: String, hint: String, error: String? = null, secret: Boolean = false, email: Boolean = false, enabled: Boolean = true, change: (String) -> Unit) {
+internal fun Field(label: String, value: String, hint: String, error: String? = null, secret: Boolean = false, email: Boolean = false, enabled: Boolean = true, change: (String) -> Unit) {
     var visible by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -158,7 +162,7 @@ private fun Field(label: String, value: String, hint: String, error: String? = n
 }
 
 @Composable
-private fun Choices(label: String, options: List<String>, selected: Int, enabled: Boolean, error: String? = null, choose: (Int) -> Unit) {
+internal fun Choices(label: String, options: List<String>, selected: Int, enabled: Boolean, error: String? = null, choose: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Row { options.forEachIndexed { index, text ->
@@ -172,7 +176,7 @@ private fun Choices(label: String, options: List<String>, selected: Int, enabled
 }
 
 @Composable
-private fun Picker(label: String, value: String, hint: String, icon: ImageVector, error: String?, enabled: Boolean, click: () -> Unit) {
+internal fun Picker(label: String, value: String, hint: String, icon: ImageVector, error: String?, enabled: Boolean, click: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Row(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown).clickable(enabled = enabled, onClick = click).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -186,12 +190,9 @@ private fun Picker(label: String, value: String, hint: String, icon: ImageVector
 private fun Account(model: AppModel, settings: () -> Unit) {
     val context = LocalContext.current; val form = model.form
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        if (model.loggedIn || model.preview) ProfileScreen(model) else {
         Hero(true, model.signup)
-        if (model.loggedIn) Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Eyebrow("MY ACCOUNT"); Text("다시 만나 반가워요", fontFamily = Serif, fontSize = 26.sp); Text(model.email)
-            Action("오늘의 운세 확인", model.busy) { model.page = "home" }
-            TextButton(onClick = { model.logout() }, enabled = !model.busy) { Text("로그아웃") }
-        } else Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp).fillMaxWidth().background(Color.White).border(.7.dp, Brown)) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp).fillMaxWidth().background(Color.White).border(.7.dp, Brown)) {
             Box(Modifier.fillMaxWidth().height(5.dp).background(Yellow))
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 Eyebrow(if (model.signup) "CREATE YOUR ACCOUNT" else "WELCOME BACK")
@@ -226,9 +227,10 @@ private fun Account(model: AppModel, settings: () -> Unit) {
                 }
             }
         }
+        }
         Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.Center) {
             TextButton(onClick = settings, enabled = !model.busy) { Text("서버 설정", fontSize = 11.sp) }
-            if (!model.loggedIn) TextButton(onClick = { model.showPreview() }, enabled = !model.busy) { Text("디자인 미리보기", fontSize = 11.sp) }
+            if (!model.loggedIn && !model.preview) TextButton(onClick = { model.showPreview() }, enabled = !model.busy) { Text("디자인 미리보기", fontSize = 11.sp) }
         }
     }
 }
@@ -237,17 +239,7 @@ private fun Account(model: AppModel, settings: () -> Unit) {
 private fun Home(model: AppModel, notice: (String) -> Unit) {
     var dropdown by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Eyebrow("WHO IS THIS FORTUNE FOR?")
-            Row {
-                Row(Modifier.weight(1f).background(Yellow).border(.7.dp, Brown).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.BookmarkBorder, null, Modifier.size(20.dp)); Column(Modifier.padding(start = 8.dp)) { Text("나의 부적", fontSize = 12.sp, fontWeight = FontWeight.Bold); Text("저장된 내 정보로 보기", fontSize = 9.sp) }
-                }
-                Row(Modifier.weight(1f).background(Color.White).border(.7.dp, Brown).clickable { notice("친구에게 선물 화면은 후속 구현 대상입니다.") }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.CardGiftcard, null, Modifier.size(20.dp)); Column(Modifier.padding(start = 8.dp)) { Text("친구에게 선물", fontSize = 12.sp, fontWeight = FontWeight.Bold); Text("친구의 정보로 만들기", fontSize = 9.sp) }
-                }
-            }
-        }
+        TargetSelector(model)
         Hero(false)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             when {
@@ -288,11 +280,11 @@ private fun Home(model: AppModel, notice: (String) -> Unit) {
                         } }
                     } }
                 }
-                Action("AI 맞춤 해석 받기", model.busy) { model.interpret() }
-                model.interpretation?.let { result -> Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Action(if (model.interpretationVisible) "해석 닫기" else "AI 맞춤 해석 받기", model.busy) { model.interpret() }
+                model.interpretation?.takeIf { model.interpretationVisible }?.let { result -> Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Eyebrow("A LITTLE LUCK FOR YOU"); Text(result.optString("day_message"), fontFamily = Serif, fontSize = 21.sp)
                     Text(result.optString("action_advice"), fontSize = 13.sp, lineHeight = 22.sp)
-                    Action("부적 만들기", false) { notice("부적 편집기는 후속 구현 대상입니다.\n예시 템플릿: 행운 · 용기 · 응원") }
+                    Action("이 해석으로 부적 만들기", false) { model.openEditor() }
                 } }
             }
         }
@@ -300,7 +292,7 @@ private fun Home(model: AppModel, notice: (String) -> Unit) {
 }
 
 @Composable
-private fun FortuneCard(fortune: JSONObject) {
+internal fun FortuneCard(fortune: JSONObject) {
     Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) { Eyebrow("TODAY'S FORTUNE"); Text(fortune.optString("headline"), fontFamily = Serif, fontSize = 23.sp, lineHeight = 34.sp) }
@@ -324,14 +316,5 @@ private fun FortuneCard(fortune: JSONObject) {
                 Column(Modifier.weight(1f).heightIn(min = 82.dp).border(.6.dp, Brown).padding(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(label, fontSize = 9.sp); Text(value, fontFamily = Serif, fontSize = 17.sp, lineHeight = 24.sp) }
             }
         }
-    }
-}
-
-@Composable
-private fun Library() {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Eyebrow("MY LITTLE LUCK"); Text("보관함", fontFamily = Serif, fontSize = 34.sp)
-        Text("보관함 API 연결 전 예시 화면입니다.", fontSize = 12.sp)
-        listOf("오늘도 잘될 거야" to "용기를 주는 부적", "행운이 찾아오는 날" to "나를 위한 응원").forEach { (title, caption) -> Column(Modifier.fillMaxWidth().background(Yellow).border(.7.dp, Brown).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { Text("福", fontFamily = Serif, fontSize = 38.sp, color = Red); Text(title, fontFamily = Serif, fontSize = 24.sp); Text(caption, fontSize = 12.sp) } }
     }
 }

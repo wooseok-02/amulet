@@ -30,13 +30,13 @@ internal val seoul: ZoneId = ZoneId.of("Asia/Seoul")
 internal class ApiFailure(val status: Int, message: String) : Exception(message)
 
 /** Tokens are encrypted with a device-bound Android Keystore key; passwords are never stored. */
-internal class SessionStore(context: Context) {
-    private val prefs = context.getSharedPreferences("session", Context.MODE_PRIVATE)
+internal class SessionStore(context: Context, prefsName: String = "session", private val keyAlias: String = "bukku-session") {
+    private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (store.getKey("bukku-session", null) as? SecretKey)?.let { return it }
+        (store.getKey(keyAlias, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {
-            init(KeyGenParameterSpec.Builder("bukku-session", KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            init(KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
         }.generateKey()
     }
@@ -120,7 +120,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
     private val store = SessionStore(application)
     private val refreshLock = Mutex()
     private var session: JSONObject? = null
-    var server by mutableStateOf(prefs.getString("server", "").orEmpty()); private set
+    var server by mutableStateOf(prefs.getString("server", "").orEmpty().ifBlank { "https://amulet-api.onrender.com" }); private set
     var page by mutableStateOf("account")
     var signup by mutableStateOf(false)
     var form by mutableStateOf(SignupForm())
@@ -136,10 +136,32 @@ internal class AppModel(application: Application) : AndroidViewModel(application
     var concern by mutableStateOf("")
     var mood by mutableStateOf("불안해요")
     var interpretation by mutableStateOf<JSONObject?>(null); private set
+    var interpretationVisible by mutableStateOf(false)
+    var friendMode by mutableStateOf(false)
+    var friendForm by mutableStateOf(FriendForm())
+    var friendErrors by mutableStateOf(emptyMap<String, String>()); private set
+    var friendFortune by mutableStateOf<JSONObject?>(null); private set
+    var friendInterpretation by mutableStateOf<JSONObject?>(null); private set
+    var friendInterpretationVisible by mutableStateOf(false)
+    var friendCategory by mutableStateOf("전체")
+    var friendConcern by mutableStateOf("")
+    var editorStep by mutableStateOf(0)
+    var draft by mutableStateOf(Charm()); private set
+    var draftSaved by mutableStateOf(false); private set
+    private val charmStore = CharmStore(application)
+    var archived by mutableStateOf(emptyList<Charm>()); private set
+    private val archiveOwner: String get() = "$server|${session?.optString("user_id") ?: "preview"}"
     val email: String get() = session?.optString("email").orEmpty()
+    val profile: JSONObject get() {
+        if (preview) return JSONObject().put("name", "행운님").put("birth_date", "2000-01-02").put("calendar_type", "SOLAR").put("birth_time", "13:30").put("gender", "FEMALE")
+        return runCatching {
+            val encoded = session?.getString("access_token")?.split('.')?.get(1) ?: return@runCatching JSONObject()
+            JSONObject(String(Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING), Charsets.UTF_8)).optJSONObject("user_metadata") ?: JSONObject()
+        }.getOrDefault(JSONObject())
+    }
     init { restore() }
     private fun api() = ApiClient(server)
-    private fun accept(value: JSONObject) { store.save(value); session = value; loggedIn = true }
+    private fun accept(value: JSONObject) { store.save(value); session = value; loggedIn = true; reloadArchive() }
     private suspend fun refresh(): Unit = refreshLock.withLock {
         val value = session ?: throw ApiFailure(401, "로그인이 필요합니다.")
         accept(api().request("/auth/refresh", JSONObject().put("refresh_token", value.getString("refresh_token"))))
@@ -148,6 +170,9 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         store.clear(); session = null; loggedIn = false; preview = false
         fortune = null; interpretation = null; concern = ""; form = SignupForm(); errors = emptyMap()
         category = "전체"; mood = "불안해요"; signup = false; page = "account"; restoreFailed = false
+        friendMode = false; friendForm = FriendForm(); friendErrors = emptyMap(); friendFortune = null
+        friendInterpretation = null; friendConcern = ""; friendCategory = "전체"
+        interpretationVisible = false; friendInterpretationVisible = false; editorStep = 0; draft = Charm(); draftSaved = false; archived = emptyList()
     }
     fun logout() { if (!busy) { reset(); message = "" } }
     fun restore() = viewModelScope.launch {
@@ -171,7 +196,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         if (normalized != server) { reset(); server = normalized; prefs.edit().putString("server", server).apply() }
         message = "서버 주소를 저장했습니다."; return true
     }
-    fun showPreview() { if (!busy && !restoreFailed) { preview = true; page = "home"; fortune = sampleFortune(); message = "" } }
+    fun showPreview() { if (!busy && !restoreFailed) { preview = true; page = "home"; fortune = sampleFortune(); message = ""; reloadArchive() } }
     fun switchAuth() { if (!busy) { signup = !signup; form = SignupForm(); errors = emptyMap(); message = "" } }
     fun authenticate() {
         if (busy) return
@@ -206,15 +231,67 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         if (loggedIn) runAction { fortune = authorized("/fortune/today") }
     }
     fun interpret() {
+        if (busy) return
+        if (interpretationVisible) { interpretationVisible = false; return }
         if (concern.isBlank()) { message = "고민 내용을 입력해 주세요."; return }
         if (concern.length > 200) { message = "고민은 200자까지 입력할 수 있습니다."; return }
         if (preview) {
             interpretation = JSONObject().put("day_message", "준비한 만큼 자신감이 빛나는 날이에요.")
                 .put("action_advice", "첫 문장을 소리 내어 한 번 연습해보세요.")
+            interpretationVisible = true; message = ""
             return
         }
-        runAction { interpretation = authorized("/fortune/interpret", JSONObject().put("category", category).put("concern", concern.trim()).put("mood", mood)) }
+        runAction { interpretation = authorized("/fortune/interpret", JSONObject().put("category", category).put("concern", concern.trim()).put("mood", mood)); interpretationVisible = true }
     }
+    fun friendToday() {
+        if (busy) return
+        friendErrors = friendForm.validate()
+        if (friendErrors.isNotEmpty()) return
+        if (!preview && !loggedIn) { page = "account"; message = "로그인하고 친구의 운세를 확인해 주세요."; return }
+        friendInterpretation = null; friendInterpretationVisible = false
+        if (preview) { friendFortune = sampleFriendFortune(); message = "" }
+        else runAction { friendFortune = authorized("/fortune/friend/today", friendForm.json()) }
+    }
+    fun editFriend() { if (!busy) { friendFortune = null; friendInterpretation = null; friendInterpretationVisible = false; message = "" } }
+    fun interpretFriend() {
+        if (busy) return
+        if (friendInterpretationVisible) { friendInterpretationVisible = false; return }
+        if (friendConcern.isBlank() || friendConcern.length > 200) { message = "친구의 상황을 1~200자로 입력해 주세요."; return }
+        if (friendFortune == null) return
+        if (preview) {
+            friendInterpretation = JSONObject().put("day_message", "지금까지 쌓아온 준비가 친구의 가장 단단한 행운이에요.")
+                .put("action_advice", "친구가 스스로의 노력을 믿을 수 있도록, 짧고 확실한 응원을 전해보세요.")
+            friendInterpretationVisible = true; message = ""
+        } else runAction {
+            friendInterpretation = authorized("/fortune/friend/interpret", JSONObject().put("profile", friendForm.json()).put("fortune", friendFortune)
+                .put("concern", JSONObject().put("category", friendCategory).put("situation", friendConcern.trim())))
+            friendInterpretationVisible = true
+        }
+    }
+    fun openEditor() {
+        val interpretation = if (friendMode) friendInterpretation else this.interpretation
+        if (interpretation == null) return
+        val source = if (friendMode) friendFortune else fortune
+        val charmText = if (preview) {
+            if (friendMode) "너의 모든 준비가\n빛을 발할 거야" else "천천히 말해도\n나의 진심은 닿는다"
+        } else interpretation.optString("day_message").ifBlank { interpretation.optString("action_advice") }
+        draft = Charm(text = charmText,
+            recipient = if (friendMode) friendForm.name.trim() else "", theme = if (friendMode) "sky" else "cream",
+            message = source?.optString("total_comment").orEmpty(),
+            advice = interpretation.optString("day_message") + "\n" + interpretation.optString("action_advice"),
+            concern = if (friendMode) friendConcern else concern, luckyColor = source?.optString("lucky_color", "초록") ?: "초록",
+            score = source?.optInt("total_score", 0) ?: 0, demo = preview)
+        draftSaved = false; editorStep = 1; message = ""
+    }
+    fun updateDraft(value: Charm) { draft = value; draftSaved = false }
+    fun reloadArchive() { archived = charmStore.read(archiveOwner) }
+    fun saveDraft(): Boolean {
+        return try {
+            val updated = listOf(draft) + archived.filterNot { it.id == draft.id }
+            charmStore.save(archiveOwner, updated); archived = updated; draftSaved = true; message = "보관함에 저장했어요."; true
+        } catch (_: Exception) { message = "부적을 저장하지 못했어요. 다시 시도해 주세요."; false }
+    }
+    fun navigate(destination: String) { if (!busy) { editorStep = 0; page = destination; message = ""; if (destination == "library") reloadArchive() } }
     private fun handle(error: Exception) {
         if (error is ApiFailure && error.status == 401) {
             val wasLoggedIn = loggedIn

@@ -24,11 +24,14 @@ Android Studio에서 이 `android` 폴더를 연다. 저장소 전체 문서와 
 - `POST /auth/signup`, `/auth/login`, `/auth/refresh` 연결. 세션은 Android Keystore AES-GCM으로 암호화한다. 비밀번호는 저장하지 않는다.
 - 앱 재실행 시 토큰을 갱신하고 인증 거절이면 로그인 화면으로 이동한다. 통신 오류는 토큰을 유지하고 재시도를 제공한다.
 - `GET /fortune/today`, `POST /fortune/interpret` 연결 및 200자 고민 입력, 7개 상황, 4개 마음 상태.
-- API가 없는 보관함과 알림은 예시이며 친구 선물과 부적 편집기는 후속 구현 안내를 제공한다.
+- 친구 운세와 AI 응원 API 연결, 친구 정보/상황 입력, 부적 꾸미기와 완성 화면.
+- 문양/테두리 변경, PNG 이미지 공유, 계정별 암호화 기기 보관함.
+- 월별 캘린더, 날짜별 팝업과 빈 날짜 안내, 부적의 3D 뒤집기 및 당시 기록 확인.
+- 월간 해석과 행운일은 API가 없어 예시로 표시한다. 알림은 기존 안내를 제공한다.
 
 ## 서버 설정과 미리보기
 
-현재 GitHub 문서에는 실제 배포 URL이 없다. 내 정보 화면 하단 **서버 설정**에서 HTTPS 서버 주소를 입력한다.
+배포 문서의 `https://amulet-api.onrender.com`을 기본 주소로 사용한다. 내 정보 화면 하단 **서버 설정**에서 HTTPS 서버 주소를 변경할 수 있다.
 인증과 운세는 실제 API에 요청하며, 실패를 더미 성공으로 바꾸지 않는다.
 서버가 없어도 **디자인 미리보기**로 예시 운세와 AI 해석 화면을 볼 수 있다. 이 모드는 로그인 상태를 만들거나 저장하지 않는다.
 로그인 성공 후에는 실제 서버 데이터만 표시한다.
@@ -42,9 +45,9 @@ Android Studio에서 이 `android` 폴더를 연다. 저장소 전체 문서와 
 현재 컴퓨터에서는 한글 사용자 경로에 대한 Gradle 테스트 실행 오류를 피하려고 `-g C:/chg/bukku-gradle-cache`를 사용한다.
 OneDrive의 생성 파일 잠금을 피하기 위해 `local.properties`에 `build.root=C:/chg/bukku-build`를 설정했다.
 이 설정은 이 컴퓨터 전용이며 Git에서 제외된다. 현재 APK 경로는 `C:/chg/bukku-build/app/outputs/apk/debug/app-debug.apk`다.
-실제 서버에 계정/프로필이 저장되는지, 운영 토큰 갱신과 실기기 테스트는 서버 주소 제공 이후에 확인해야 한다.
+이번 UI 검증은 디자인 미리보기로 수행한다. 실제 서버 통합 테스트 및 실기기 검증 결과와 구분한다.
 
-관련 요구사항: 상위 `docs/AUTH_INTEGRATION.md`, `docs/SCR_3.md`, `docs/SCR_1.md`.
+관련 요구사항: 상위 `docs/AUTH_INTEGRATION.md`, `docs/SCR_3.md`, `docs/SCR_1.md`, `docs/SCR_4.md`, `docs/FIGMA_UI_IMPLEMENTATION.md`.
 폰트는 Noto Serif KR이며 라이선스는 `FONT-LICENSE.txt`에 있다.
 로고는 사용자가 제공한 캡처의 로고 영역을 화면에서 표시한다. 원본 로고와 정확한 Figma 폰트 파일을 받으면 교체할 수 있다.
 
