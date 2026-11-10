@@ -44,8 +44,8 @@
 | 2 | DB·비공개 이미지 저장소 준비 | 완료 — 실제 Supabase 적용·권한 검증 통과 |
 | 3 | 내 부적 저장·보관함 조회 | 완료 — 구현·내부 테스트 |
 | 4 | 친구 공유 링크 생성·한 계정 수령 | 완료 — 구현·내부 테스트, 실제 동시 요청 미검증 |
-| 5 | 설치 안내·앱 연결 규격 제공 | 백엔드 페이지·연결 안내 완료, 실제 주소·Android 설정 대기 |
-| 6 | 내부 검증·배포·인계 | 내부 검증·커밋 완료, GitHub 푸시 네트워크 차단으로 사용자 작업 대기 |
+| 5 | 설치 정보·APK 배포·앱 연결 API | HTML 제거·API 전용으로 수정, APK·앱 식별값 대기, 수정본 미배포 |
+| 6 | 내부 검증·배포·인계 | 완료 — 내부 19개 통과·GitHub 병합·Render Live, 실제 연동 미검증 |
 
 ## 1구간 — 저장 규격과 문서
 
@@ -107,7 +107,7 @@
 - [x] 새 기능 내부 테스트 18개와 변경된 공통 인증 처리 기존 테스트 1개, 총 19개 통과.
 - [x] 실제 Supabase 이미지 업로드·조회·수령 통합 검증은 사용자 지시에 따라 실행하지 않았다.
 - [x] 변경 파일·환경 설정·프론트 연결 방법을 정리하고 작업 브랜치에 커밋했다.
-- [ ] Render 환경 설정과 배포 후 API 동작을 확인한다.
+- [x] Render 빌드 성공·Application startup complete·Your service is live를 확인했다. 실제 API 호출 검증은 사용자 지시에 따라 제외했다.
 - [x] 실제 Android 기기 테스트는 사용자 지시에 따라 실행하지 않았다.
 - [x] API 명세·ERD·작업 상태를 실제 구현과 맞췄다.
 
@@ -205,3 +205,34 @@
 - `git push -u origin feature/amulet-storage-sharing`은 실행 환경에서 `Could not resolve host: github.com`으로 실패했다. GitHub에 변경이 올라갔다고 보고하지 않는다.
 - 필요한 사용자 작업: 복제본 폴더에서 위 푸시 명령 실행 후 결과 알림. 사용자 응답을 기다린다.
 - Render 설정 변경·배포·외부 API 호출 테스트는 아직 수행하지 않았다.
+
+## GitHub 반영·배포 진행 — 2026-11-10
+
+- 사용자가 작업 브랜치 푸시를 완료했고 GitHub의 두 커밋을 확인했다.
+- PR #3: https://github.com/wooseok-02/amulet/pull/3
+- 기존 Render 연결 브랜치 `back`에 충돌 없이 병합했다. 기존 `back` 변경을 유지하는 병합 커밋은 `af9b918277f6e1215665788fb4f0fa5471a9752e`다.
+- Render 자동 배포 `dep-dbpg0mp42hec73dg7pdg`가 시작됐다. 빌드 성공·Pillow 13.0.0과 python-multipart 0.0.33 설치·uvicorn 시작 명령을 확인했다.
+- 공유 기본 주소·APK·Android 설정은 미정 상태를 유지한다. 실제 API·프론트 연동 테스트는 하지 않는다.
+
+## 6구간 배포 완료 — 2026-11-10
+
+- Render에서 병합 커밋 `af9b918`의 빌드 성공, `Application startup complete`, `Your service is live`를 확인했다.
+- 배포 결과: https://dashboard.render.com/web/srv-db7gc7favr4c7385fd2g/deploys/dep-dbpg0mp42hec73dg7pdg
+- 실제 프론트·API·이미지 업로드 통합 테스트는 사용자 지시에 따라 수행하지 않았다. 배포 성공을 기능 통합 검증 통과로 해석하지 않는다.
+- 공유 주소·APK 주소·Android App Links 값과 프론트 연결은 남아 있다. 설정 전 공유 생성은 503으로 중단하며 임의 주소를 사용하지 않는다.
+- 이 배포 완료 기록은 복제본 진행표에 추가했다. GitHub에 병합된 구현·명세와 별개로 이 마지막 기록은 아직 푸시하지 않았다.
+
+## 담당 범위 수정 — API만 제공
+
+이 항목은 이전 HTML 설치 안내 페이지 완료 기록을 대체한다.
+
+- [x] 서버 HTML·CSS 설치 안내 페이지와 해당 모듈 제거.
+- [x] `GET /app/install`, `GET /share/{token}`은 설치 정보 JSON만 제공. 공개 GET은 부적을 조회·수령하지 않음.
+- [x] `GET /app/download`로 서버에 배포한 APK 파일 또는 설정한 파일 저장소 리다이렉트 제공. APK 미등록 시 503.
+- [x] `GET /.well-known/assetlinks.json`으로 등록된 Android 앱 식별 정보 제공. 미등록 시 503.
+- [x] 프론트 전달 문서를 `docs/1111_api.md`에 작성하고 이전 전달 문서는 해당 파일을 안내하도록 변경.
+- [x] 필요한 내부 테스트 21개 통과. HTML 제거·미등록 처리·로컬 임시 파일 전달·저장소 리다이렉트·연결 JSON 검증 포함. 외부 API·실제 APK 설치·프론트 테스트 없음.
+- [ ] 실제 서명 APK·패키지명·배포 인증서 SHA-256·공유 화면 주소 수령 및 운영 설정.
+- [ ] 이 API 전용 수정본 GitHub 반영·Render 재배포. 앞선 Live는 HTML 제거 이전 버전이며 이번 수정본 배포를 의미하지 않는다.
+
+APK 배포는 관리자가 서버 산출물/영속 저장소에 서명 APK를 배치하고 AMULET_APK_FILE_PATH로 연결하거나, 파일 저장소에 보관하고 AMULET_APK_DOWNLOAD_URL로 연결한다. 공개 APK 업로드 API는 제공하지 않는다. Render 임시 디스크에 수동 업로드한 파일을 영구 보관으로 취급하지 않는다. 화면 제작·Android 앱 빌드 및 링크 수신은 프론트 담당이다.

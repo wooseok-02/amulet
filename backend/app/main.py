@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from app.auth import router as auth_router
 from app.amulet import AmuletError
 from app.amulet_api import router as amulet_router
-from app.amulet_share_page import router as amulet_share_page_router
+from app.app_distribution import router as app_distribution_router
 from app.amulet_upload_limit import AmuletUploadLimit
 from app.config import get_settings
 from app.fortune_api import router as fortune_router
@@ -21,7 +21,7 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(fortune_router)
 app.include_router(amulet_router)
-app.include_router(amulet_share_page_router)
+app.include_router(app_distribution_router)
 app.add_middleware(AmuletUploadLimit)
 
 

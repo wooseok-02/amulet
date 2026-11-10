@@ -246,3 +246,5 @@ Authorization: Bearer {access_token}
 부적 저장·공유의 요청·응답 규격은 [부적 API 명세](docs/AMULET_API.md)에 정리했다.
 
 프론트에 전달할 흐름·설정은 [Android 연결 안내](docs/AMULET_ANDROID_HANDOFF.md)에 정리했다.
+
+설치 정보·APK 배포도 API로만 제공한다. 화면 구현은 프론트 담당이며 최신 연결 규격은 [1111_api.md](../docs/1111_api.md)를 따른다.
