@@ -138,8 +138,9 @@ Authorization: Bearer {access_token}
 }
 ```
 
-오늘 운세는 한국 날짜 기준으로 사용자마다 하루에 하나만 저장한다. 고민 입력과
-맞춤 해석 결과는 저장하지 않는다.
+오늘 운세는 한국 날짜 기준으로 사용자마다 하루에 하나만 저장한다. 운세·해석 API는
+고민 입력과 맞춤 해석 결과를 저장하지 않는다. 별도 부적 저장 단계에서는 당시 결과와
+그날의 기록을 보존한다. 아래 부적 저장 연결 규칙을 참고한다.
 
 ## 친구 운세 API
 
@@ -213,4 +214,35 @@ Authorization: Bearer {access_token}
 }
 ```
 
-친구 정보, 친구 운세, 상황과 해석 결과는 DB에 저장하지 않는다.
+친구 운세·해석 API에서는 친구 정보, 운세, 상황과 해석 결과를 DB에 저장하지 않는다.
+별도 부적 공유 단계에서는 뒷면에 필요한 당시 결과와 상황 원문만 보존한다.
+
+## 부적 뒷면과 기존 API 연결
+
+`POST /fortune/interpret`와 `POST /fortune/friend/interpret`의 응답은 변경하지 않는다.
+두 API는 이미 아래 두 값을 반환하며, 부적 저장·공유 단계에서 두 값을 모두 보존한다.
+
+```json
+{
+  "day_message": "진심 있게 답하는 태도가 빛나는 날이에요.",
+  "action_advice": "첫 문장을 소리 내어 한 번 연습해보세요."
+}
+```
+
+| 부적 뒷면 | 기존 값 |
+| --- | --- |
+| 오늘의 운세 한마디 본문 | 운세의 `total_comment` |
+| 그날의 기록 | 내 `concern` 또는 친구 `situation` 원문 |
+| AI 맞춤 해석 | `day_message` |
+| 행동 조언 | `action_advice` |
+| 행운의 색 | 운세의 `lucky_color` |
+
+복제본에 부적 저장·공유 API를 구현했고 실제 Supabase에 테이블·버킷을 적용했다.
+생성 API가 두 값을 반환하는 것과 부적에 저장되는 것은 별개의 기능이다.
+내부 테스트를 완료했으며 프론트 연동·실제 API 호출 테스트는 하지 않았다. 상세 정책은
+[저장·공유 문서](../docs/AMULET_STORAGE_AND_SHARING.md), 구현 상태는
+[진행표](docs/AMULET_STORAGE_AND_SHARING_PROGRESS.md)를 참고한다.
+
+부적 저장·공유의 요청·응답 규격은 [부적 API 명세](docs/AMULET_API.md)에 정리했다.
+
+프론트에 전달할 흐름·설정은 [Android 연결 안내](docs/AMULET_ANDROID_HANDOFF.md)에 정리했다.

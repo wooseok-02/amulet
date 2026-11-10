@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -37,6 +37,7 @@ INVALID_ACCESS_TOKEN_MESSAGE = "로그인 정보가 만료되었습니다. 다�
 class AuthenticatedSupabase:
     user_id: str
     client: Client
+    access_token: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True)
@@ -71,7 +72,7 @@ def get_authenticated_supabase(
         )
 
     client.postgrest.auth(token)
-    return AuthenticatedSupabase(user_id=response.user.id, client=client)
+    return AuthenticatedSupabase(user_id=response.user.id, client=client, access_token=token)
 
 
 def get_fortune_request_context(
