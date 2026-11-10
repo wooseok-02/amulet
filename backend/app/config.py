@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import HttpUrl, SecretStr
+from pydantic import HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     supabase_publishable_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6-luna"
+    amulet_share_base_url: HttpUrl | None = None
+    amulet_apk_download_url: HttpUrl | None = None
+
+    @field_validator("amulet_share_base_url", "amulet_apk_download_url", mode="before")
+    @classmethod
+    def empty_amulet_url_is_unconfigured(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
 
     model_config = SettingsConfigDict(
         env_file=".env",

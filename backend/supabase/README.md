@@ -107,3 +107,25 @@ Expected result:
 - The two owner-only policies exist for `SELECT` and `UPDATE`.
 - Both triggers exist.
 - `authenticated` has only `SELECT` and `UPDATE`; `anon` has no table grant.
+
+## 부적 저장·공유 — 2026-11-10 적용
+
+`migrations/202611100001_create_amulet_storage_and_sharing.sql` 구성을 실제 대시보드
+SQL Editor에서 적용하고 이력 `202611100001`로 기록했다. 기존 사용자·운세 테이블은 변경하지 않았다.
+새 테이블은 `amulets`, `amulet_library`, `amulet_share_links`이며 비공개
+Storage 버킷 `amulet-images`를 사용한다. 모든 테이블에 RLS가 적용된다.
+
+로그인한 사용자의 JWT와 기존 Publishable key로 Storage·RPC를 호출한다.
+관리자 비밀키는 추가하지 않는다. `save_amulet`은 저장·보관함 추가 또는 선물 링크 생성을,
+`claim_amulet`은 수령 계정 확정·보관함 추가를 한 트랜잭션으로 처리한다.
+테이블에 대한 authenticated 직접 INSERT/UPDATE/DELETE는 허용하지 않는다.
+함수의 검색 경로는 고정하고 anon/PUBLIC 실행 권한을 제거했다.
+
+`verify_amulet_rls.sql`은 기존 계정 두 개의 ID로 검증하며 가상 부적 데이터는
+마지막에 모두 롤백한다. 소유자 조회·선물 격리·수령 반복·다른 계정 차단을 실제 DB에서 확인했다.
+
+이미지 저장 실패 시 아직 부적 원본에 연결되지 않은 본인 파일만 정리할 수 있다.
+이미 저장된 부적 이미지는 삭제할 수 없다. 수령 링크 토큰 해시와 수령 계정은 직접 조회할 수 없다.
+
+근거: https://supabase.com/docs/guides/database/functions
+https://supabase.com/docs/guides/storage/security/access-control
