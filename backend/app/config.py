@@ -1,4 +1,6 @@
 from functools import lru_cache
+from pathlib import Path
+import re
 from typing import Literal
 
 from pydantic import HttpUrl, SecretStr, field_validator
@@ -15,6 +17,17 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-6-luna"
     amulet_share_base_url: HttpUrl | None = None
     amulet_apk_download_url: HttpUrl | None = None
+    amulet_apk_file_path: Path | None = None
+    android_package_name: str | None = None
+    android_sha256_cert_fingerprints: list[str] = []
+
+    @field_validator("android_sha256_cert_fingerprints")
+    @classmethod
+    def validate_android_fingerprints(cls, values):
+        if any(not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}", value) for value in values):
+            raise ValueError("Android 서명은 콜론으로 구분한 SHA-256 지문이어야 합니다.")
+        return [value.upper() for value in values]
+
 
     @field_validator("amulet_share_base_url", "amulet_apk_download_url", mode="before")
     @classmethod

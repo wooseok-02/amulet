@@ -168,3 +168,7 @@ month와 date 중 하나만 전달하며 잘못된 필터는 HTTP 422다.
 
 
 프론트 전달 사항과 미정 설정은 [Android 연결 안내](AMULET_ANDROID_HANDOFF.md)를 참고한다.
+
+## 설치·APK 배포 API
+
+서버 HTML 설치 안내 페이지를 제거했다. 설치 JSON·APK 다운로드·Android 도메인 연결 API는 [1111_api.md](../../docs/1111_api.md)를 따른다. APK 등록 전 다운로드는 503이며 설치 정보는 apk_available=false다.
