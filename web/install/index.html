@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>부꾸 · 선물 받기</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#fff8e7;color:#50382b;font:16px/1.7 system-ui,sans-serif}header{border-bottom:1px solid;padding:20px}main{max-width:540px;margin:48px auto;padding:24px}.label{font-size:12px;letter-spacing:2px}h1{font-family:serif;font-weight:500;font-size:34px}section{background:white;border:1px solid;padding:28px;border-top:6px solid #f9cb49}button,a.button{display:block;width:100%;padding:16px;margin:16px 0;border:1px solid #50382b;background:#f9cb49;color:#50382b;text-align:center;font:inherit;text-decoration:none;cursor:pointer}button:disabled{opacity:.5;cursor:default}.muted{font-size:13px}#error{color:#c73c28}footer{margin-top:28px;font-size:13px}[hidden]{display:none!important}</style></head>
+<body><header>불안을 행운으로 · 부꾸</header><main><p class="label">A LITTLE LUCK FOR YOU</p><h1>오늘의 응원을<br>부적으로 만나보세요.</h1><section>
+<p id="status" role="status">앱 설치 정보를 확인하고 있어요.</p><a id="download" class="button" hidden>부꾸 APK 다운로드</a>
+<button id="retry" hidden>다시 확인</button><p id="error" role="alert"></p>
+<p>다운로드한 파일을 열고 Android의 안내에 따라 설치해주세요.</p><p>설치와 로그인 또는 회원가입을 마친 뒤, 친구가 보낸 <strong>원래 선물 링크를 다시 눌러주세요.</strong></p>
+<a id="open" class="button" hidden>설치한 앱에서 원래 선물 열기</a><p class="muted">이 페이지를 보는 것만으로 선물이 수령되지 않습니다. 링크를 먼저 수령한 한 계정만 받을 수 있어요.</p></section><footer>앱 설치 파일이 준비되지 않았거나 연결에 실패하면 잠시 후 다시 확인해주세요.</footer></main>
+<script src="config.js"></script><script>
+'use strict';
+const config=window.BUKKU_CONFIG;
+const api=new URL(config.apiBase);const token=/^\/share\/([A-Za-z0-9_-]{43})\/?$/.exec(location.pathname)?.[1];
+const status=document.querySelector('#status'),error=document.querySelector('#error'),download=document.querySelector('#download'),retry=document.querySelector('#retry'),open=document.querySelector('#open');
+if(token){open.href=`intent://${location.host}/share/${token}#Intent;scheme=https;package=com.example.bukku;end`;open.hidden=false;}
+async function load(){
+ download.hidden=true;retry.hidden=true;error.textContent='';status.textContent='앱 설치 정보를 확인하고 있어요.';
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  if(api.protocol!=='https:')throw Error('설치 정보를 확인할 수 없어요.');
+  const response=await fetch(new URL(token?`/share/${token}`:'/app/install',api),{signal:controller.signal,credentials:'omit'});
+  if(!response.ok)throw Error(response.status===404?'선물 링크를 확인해주세요.':'설치 정보에 연결하지 못했어요.');
+  const info=await response.json();
+  if(info.apk_available===false){status.textContent='앱 설치 파일을 준비 중이에요.';retry.hidden=false;return;}
+  const url=new URL(info.download_url);
+  if(info.apk_available!==true||url.protocol!=='https:'||url.origin!==api.origin||url.pathname!=='/app/download')throw Error('설치 파일 주소를 확인하지 못했어요.');
+  download.href=url.href;download.hidden=false;status.textContent='부꾸를 설치하고 친구의 선물을 받아보세요.';
+ }catch(e){status.textContent='앱 설치 정보를 불러오지 못했어요.';error.textContent=e.name==='AbortError'?'연결 시간이 초과됐어요. 다시 확인해주세요.':e instanceof TypeError?'인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.':e.message;retry.hidden=false;}
+ finally{clearTimeout(timer);}
+}
+retry.onclick=load;load();
+</script></body></html>

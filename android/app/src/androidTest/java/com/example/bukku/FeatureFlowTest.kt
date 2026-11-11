@@ -74,12 +74,17 @@ class FeatureFlowTest {
                 capture("03-friend-result")
                 scenario.onActivity {
                     model.openEditor(); assertEquals(1, model.editorStep)
+                    assertEquals(model.friendInterpretation!!.getString("day_message"),model.draft.dayMessage)
+                    assertEquals(model.friendInterpretation!!.getString("action_advice"),model.draft.actionAdvice)
                     model.updateDraft(model.draft.copy(pattern = "별", frame = "점선"))
                 }
                 capture("04-editor")
                 scenario.onActivity { model.editorStep = 2 }
                 capture("05-complete")
                 scenario.onActivity {
+                    assertFalse("Friend gifts must not enter the sender archive",model.saveDraft())
+                    model.friendMode=false;model.concern="면접에서 준비한 말을 잘 전하고 싶어요."
+                    model.interpret();model.openEditor();model.editorStep=2
                     assertTrue(model.saveDraft())
                     assertEquals(model.draft, CharmStore(context).read("${model.server}|preview").first())
                     model.navigate("library")

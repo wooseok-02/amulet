@@ -19,6 +19,11 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import java.time.YearMonth
+import java.io.ByteArrayOutputStream
+import android.graphics.Bitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -56,30 +61,6 @@ internal class SessionStore(context: Context, prefsName: String = "session", pri
         } catch (_: Exception) { clear(); null }
     }
     fun clear() { check(prefs.edit().clear().commit()) }
-}
-
-internal class ApiClient(private val base: String) {
-    suspend fun request(path: String, body: JSONObject? = null, token: String? = null): JSONObject = withContext(Dispatchers.IO) {
-        val connection = URI(base.trimEnd('/') + path).toURL().openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 15000
-            connection.readTimeout = 90000
-            connection.instanceFollowRedirects = false
-            connection.requestMethod = if (body == null) "GET" else "POST"
-            connection.setRequestProperty("Accept", "application/json")
-            token?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
-            body?.let {
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                connection.outputStream.use { output -> output.write(it.toString().toByteArray(Charsets.UTF_8)) }
-            }
-            val status = connection.responseCode
-            val raw = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
-            val json = runCatching { JSONObject(raw) }.getOrNull()
-            if (status !in 200..299) throw ApiFailure(status, json?.optString("detail")?.takeIf { !it.startsWith("[") && it.isNotBlank() } ?: "요청을 처리하지 못했습니다. ($status)")
-            json ?: throw ApiFailure(502, "서버 응답 형식이 올바르지 않습니다.")
-        } finally { connection.disconnect() }
-    }
 }
 
 internal fun sampleFortune() = JSONObject().apply {
@@ -158,8 +139,30 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         }.getOrDefault(JSONObject())
     }
     init { restore() }
+    private val refreshedImages=mutableSetOf<String>()
+    fun refreshImage(id:String) { if(refreshedImages.add(id))openArchiveItem(id) }
+    var archiveMonth by mutableStateOf(YearMonth.now(seoul)); private set
+    var archiveLoading by mutableStateOf(false); private set
+    var archiveError by mutableStateOf(""); private set
+    var openedDate by mutableStateOf<LocalDate?>(null); private set
+    var dateItems by mutableStateOf(emptyList<Charm>()); private set
+    var dateLoading by mutableStateOf(false); private set
+    var detail by mutableStateOf<Charm?>(null); private set
+    var detailLoading by mutableStateOf(false); private set
+    var detailError by mutableStateOf(""); private set
+    var shareUrl by mutableStateOf(""); private set
+    var uploadUncertain by mutableStateOf(false); private set
+    private var archiveJob: Job? = null
+    private var dateJob: Job? = null
+    private var detailJob: Job? = null
+    private var archiveVersion=0
+    private var dateVersion=0
+    private var detailVersion=0
+    private val pendingStore = SessionStore(application, "pending-gift", "bukku-pending-gift")
+    private var incomingGift=false
+    var pendingGift by mutableStateOf(pendingStore.read()?.optString("token").orEmpty()); private set
     private fun api() = ApiClient(server)
-    private fun accept(value: JSONObject) { store.save(value); session = value; loggedIn = true; reloadArchive() }
+    private fun accept(value: JSONObject) { store.save(value); session = value; loggedIn = true }
     private suspend fun refresh(): Unit = refreshLock.withLock {
         val value = session ?: throw ApiFailure(401, "로그인이 필요합니다.")
         accept(api().request("/auth/refresh", JSONObject().put("refresh_token", value.getString("refresh_token"))))
@@ -171,6 +174,10 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         friendMode = false; friendForm = FriendForm(); friendErrors = emptyMap(); friendFortune = null
         friendInterpretation = null; friendConcern = ""; friendCategory = "전체"
         interpretationVisible = false; friendInterpretationVisible = false; editorStep = 0; draft = Charm(); draftSaved = false; archived = emptyList()
+        archiveVersion++; dateVersion++; detailVersion++
+        archiveJob?.cancel(); dateJob?.cancel(); detailJob?.cancel()
+        archiveLoading=false; dateLoading=false; detailLoading=false; archiveError=""; detailError=""
+        openedDate=null; dateItems=emptyList(); detail=null; shareUrl=""; uploadUncertain=false
     }
     fun logout() { if (!busy) { reset(); message = "" } }
     fun restore() = viewModelScope.launch {
@@ -182,7 +189,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
             if (error is ApiFailure && error.status == 401) reset() else restoreFailed = true
             message = error.message ?: "인터넷 연결을 확인해 주세요."
         } finally { restoring = false }
-        if (loggedIn) loadFortune()
+        if(loggedIn && incomingGift && pendingGift.isNotBlank())claimGift() else if(loggedIn)loadFortune()
     }
     fun showPreview() { if (!busy && !restoreFailed) { preview = true; page = "home"; fortune = sampleFortune(); message = ""; reloadArchive() } }
     fun switchAuth() { if (!busy) { signup = !signup; form = SignupForm(); errors = emptyMap(); message = "" } }
@@ -204,14 +211,15 @@ internal class AppModel(application: Application) : AndroidViewModel(application
             }
         }
     }
-    private suspend fun authorized(path: String, body: JSONObject? = null): JSONObject {
+    private suspend fun authorized(path: String, body: JSONObject? = null): JSONObject = withAuthorization { api().request(path, body, it) }
+    private suspend fun <T> withAuthorization(request: suspend (String) -> T): T {
         val current = session ?: throw ApiFailure(401, "로그인이 필요합니다.")
         val expires = current.optLong("expires_at", 0)
         if (expires > 0 && expires <= System.currentTimeMillis() / 1000 + 30) refresh()
-        return try { api().request(path, body, session!!.getString("access_token")) }
+        return try { request(session!!.getString("access_token")) }
         catch (error: ApiFailure) {
             if (error.status != 401) throw error
-            refresh(); api().request(path, body, session!!.getString("access_token"))
+            refresh(); request(session!!.getString("access_token"))
         }
     }
     fun loadFortune() {
@@ -266,20 +274,137 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         draft = Charm(text = charmText,
             recipient = if (friendMode) friendForm.name.trim() else "", theme = if (friendMode) "sky" else "cream",
             message = source?.optString("total_comment").orEmpty(),
+            dayMessage = interpretation.getString("day_message"), actionAdvice = interpretation.getString("action_advice"),
             advice = interpretation.optString("day_message") + "\n" + interpretation.optString("action_advice"),
             concern = if (friendMode) friendConcern else concern, luckyColor = source?.optString("lucky_color", "초록") ?: "초록",
             score = source?.optInt("total_score", 0) ?: 0, demo = preview)
-        draftSaved = false; editorStep = 1; message = ""
+        draftSaved = false; shareUrl=""; uploadUncertain=false; editorStep = 1; message = ""
     }
-    fun updateDraft(value: Charm) { draft = value; draftSaved = false }
-    fun reloadArchive() { archived = charmStore.read(archiveOwner) }
+    fun updateDraft(value: Charm) { if (!busy && !draftSaved && shareUrl.isBlank() && !uploadUncertain) { draft = value; draftSaved = false } }
+    fun reloadArchive(month: YearMonth = archiveMonth) {
+        val version=++archiveVersion
+        archiveMonth=month; archiveJob?.cancel(); archiveError=""
+        if(preview) { archived=charmStore.read(archiveOwner); archiveLoading=false; return }
+        archived=emptyList()
+        if(!loggedIn) { archiveLoading=false; return }
+        val owner=archiveOwner; archiveLoading=true
+        archiveJob=viewModelScope.launch {
+            try {
+                val items=authorized("/amulets?month=$month").getJSONArray("items")
+                val values=(0 until items.length()).map { Charm.fromServer(items.getJSONObject(it)) }
+                if(owner==archiveOwner && version==archiveVersion) archived=values
+            } catch(error:CancellationException) { throw error }
+            catch(error:Exception) { if(owner==archiveOwner && version==archiveVersion) { handle(error); archiveError=message } }
+            finally { if(owner==archiveOwner && version==archiveVersion) archiveLoading=false }
+        }
+    }
+    fun openArchiveDate(date: LocalDate) {
+        val version=++dateVersion; detailVersion++
+        dateJob?.cancel(); detailJob?.cancel(); refreshedImages.clear(); openedDate=date; dateItems=emptyList(); detail=null; detailError=""
+        if(preview) {
+            dateItems=(archived+exampleCharms(YearMonth.from(date)).filter { sample -> archived.none { it.date==sample.date } }).filter{it.date==date.toString()}
+            dateLoading=false; return
+        }
+        if(!loggedIn)return
+        val owner=archiveOwner; dateLoading=true
+        dateJob=viewModelScope.launch {
+            try {
+                val items=authorized("/amulets?date=$date").getJSONArray("items")
+                if(owner==archiveOwner && version==dateVersion) dateItems=(0 until items.length()).map { Charm.fromServer(items.getJSONObject(it)) }
+            } catch(error:CancellationException) { throw error }
+            catch(error:Exception) { if(owner==archiveOwner && version==dateVersion) { handle(error); detailError=message } }
+            finally { if(owner==archiveOwner && version==dateVersion)dateLoading=false }
+        }
+    }
+    fun openArchiveItem(id: String) {
+        val version=++detailVersion
+        detailJob?.cancel(); detail=null; detailError=""; detailLoading=true
+        val owner=archiveOwner
+        detailJob=viewModelScope.launch {
+            try { val value=Charm.fromServer(authorized("/amulets/$id")); if(owner==archiveOwner && version==detailVersion)detail=value }
+            catch(error:CancellationException){throw error}
+            catch(error:Exception){if(owner==archiveOwner && version==detailVersion){handle(error);detailError=message}}
+            finally{if(owner==archiveOwner && version==detailVersion)detailLoading=false}
+        }
+    }
+    fun closeArchive() { dateVersion++; detailVersion++; dateJob?.cancel(); detailJob?.cancel(); openedDate=null; dateItems=emptyList(); detail=null; dateLoading=false; detailLoading=false; detailError="" }
+    // Only the explicitly labelled preview uses a device-local archive.
     fun saveDraft(): Boolean {
+        if(!preview || draft.recipient.isNotBlank())return false
         return try {
-            val updated = listOf(draft) + archived.filterNot { it.id == draft.id }
-            charmStore.save(archiveOwner, updated); archived = updated; draftSaved = true; message = "보관함에 저장했어요."; true
-        } catch (_: Exception) { message = "부적을 저장하지 못했어요. 다시 시도해 주세요."; false }
+            val updated=listOf(draft)+archived.filterNot{it.id==draft.id}
+            charmStore.save(archiveOwner,updated); archived=updated; draftSaved=true; message="미리보기 보관함에 저장했어요."; true
+        } catch(_:Exception) { message="부적을 저장하지 못했어요."; false }
     }
-    fun navigate(destination: String) { if (!busy) { editorStep = 0; page = destination; message = ""; if (destination == "library") reloadArchive() } }
+    fun saveAmulet() {
+        if(busy || draftSaved || uploadUncertain || draft.recipient.isNotBlank())return
+        if(preview){saveDraft();return}
+        uploadDraft(false)
+    }
+    fun createGift() {
+        if(busy || shareUrl.isNotBlank() || uploadUncertain || draft.recipient.isBlank())return
+        if(preview){message="친구에게 보낼 링크는 로그인 후 만들 수 있어요.";return}
+        uploadDraft(true)
+    }
+    private fun uploadDraft(gift: Boolean) = runAction {
+        val snapshot=draft.copy(date=LocalDate.now(seoul).toString())
+        val upload=withContext(Dispatchers.IO) {
+            val bytes=ByteArrayOutputStream().use { stream ->
+                val bitmap=CharmArtwork.render(getApplication(),snapshot)
+                try { check(bitmap.compress(Bitmap.CompressFormat.PNG,100,stream)); stream.toByteArray() } finally {bitmap.recycle()}
+            }
+            snapshot.upload(bytes)
+        }
+        // The only retry is after an explicit authentication rejection, never a network failure.
+        val response=try { withAuthorization { api().upload(if(gift)"/amulets/shares" else "/amulets",upload,it) } }
+        catch(error:Exception) {
+            if(error is CancellationException)throw error
+            if(error !is ApiFailure || error.status>=500 && (error.status!=503 || error.message.orEmpty().contains("결과"))) {
+                uploadUncertain=true
+                message=if(gift)"공유 생성 결과를 확인하지 못했어요. 중복 생성을 막기 위해 자동으로 다시 보내지 않습니다." else "저장 결과를 확인하지 못했어요. 다시 저장하기 전에 보관함을 확인해 주세요."
+                if(!gift)reloadArchive()
+                return@runAction
+            }
+            throw error
+        }
+        val id=response.getString("amulet_id")
+        if(gift) {
+            shareUrl=response.getString("share_url")
+            message="공유 링크가 준비됐어요. 아래 버튼으로 친구에게 전해주세요."
+        } else {
+            draft=snapshot.copy(id=id,serverStored=true); draftSaved=true
+            message="보관함에 저장했어요."; reloadArchive(YearMonth.from(LocalDate.parse(snapshot.date)))
+        }
+    }
+    fun receiveLink(url: String) {
+        val token=ShareLink.token(url, BuildConfig.SHARE_HOST)
+        if(token==null) { message="공유 링크를 확인해 주세요."; return }
+        pendingGift=token; pendingStore.save(JSONObject().put("token",token)); incomingGift=true
+        if(restoring)return
+        if(loggedIn) { if(!busy)claimGift() } else {
+            incomingGift=false
+            preview=false; page="account"; editorStep=0
+            message="선물을 받으려면 로그인 또는 회원가입 후 원래 링크를 다시 눌러주세요."
+        }
+    }
+    fun claimGift() {
+        if(busy || restoring || pendingGift.isBlank())return
+        if(!loggedIn){preview=false;page="account";message="로그인 후 원래 선물 링크를 다시 눌러주세요.";return}
+        val token=pendingGift
+        incomingGift=false
+        runAction {
+            val id=authorized("/amulets/shares/claim",JSONObject().put("token",token)).getString("amulet_id")
+            val value=Charm.fromServer(authorized("/amulets/$id"))
+            detailJob?.cancel(); dateJob?.cancel(); editorStep=0; page="library"
+            openedDate=LocalDate.parse(value.date); dateItems=listOf(value); detail=value
+            detailLoading=false; dateLoading=false; detailError=""
+            pendingGift=""; pendingStore.clear(); reloadArchive(YearMonth.from(LocalDate.parse(value.date)))
+            message="선물 받은 부적을 보관함에 담았어요."
+        }
+    }
+    fun dismissGift() { pendingGift=""; incomingGift=false; pendingStore.clear() }
+    fun notifySharingError() { message="공유를 마치지 못했어요. 생성된 같은 링크로 다시 시도해 주세요." }
+    fun navigate(destination: String) { if(!busy){editorStep=0;page=destination;message="";if(destination=="library")reloadArchive()} }
     private fun handle(error: Exception) {
         if (error is ApiFailure && error.status == 401) {
             val wasLoggedIn = loggedIn
@@ -292,7 +417,10 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         if (busy) return
         busy = true; message = ""
         viewModelScope.launch {
-            try { action() } catch (error: Exception) { handle(error) } finally { busy = false }
+            try { action() } catch(error:CancellationException){throw error} catch (error: Exception) { handle(error) } finally {
+                busy = false
+                if(incomingGift && loggedIn && !restoring && pendingGift.isNotBlank())claimGift()
+            }
         }
     }
 }

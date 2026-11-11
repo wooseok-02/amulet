@@ -48,6 +48,11 @@ internal fun BukkuUi(model: AppModel) {
                     Text("종료", Modifier.clickable { model.logout() }, fontSize = 12.sp)
                 }
                 if (model.message.isNotBlank()) Text(model.message, Modifier.fillMaxWidth().background(Color(0xFFFFEAE1)).padding(14.dp), color = Red, fontSize = 13.sp)
+                if(model.pendingGift.isNotBlank())Row(Modifier.fillMaxWidth().background(Yellow).padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Text(if(model.loggedIn)"받을 선물이 있어요." else "로그인 후 원래 선물 링크를 다시 눌러주세요.",Modifier.weight(1f),fontSize=11.sp)
+                    if(model.loggedIn)TextButton(onClick={model.claimGift()},enabled=!model.busy){Text("선물 받기")}
+                    TextButton(onClick={model.dismissGift()},enabled=!model.busy){Text("닫기")}
+                }
                 if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Red)
                 when {
                     model.restoring -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -67,6 +72,7 @@ internal fun BukkuUi(model: AppModel) {
                 }
             }
         }
+        model.openedDate?.let { ArchiveDialog(it,model.dateItems,model){model.closeArchive()} }
         if (notice.isNotBlank()) AlertDialog(onDismissRequest = { notice = "" }, title = { Text("안내") }, text = { Text(notice) }, confirmButton = { TextButton(onClick = { notice = "" }) { Text("확인") } })
     }
 }
@@ -251,12 +257,12 @@ private fun Home(model: AppModel, notice: (String) -> Unit) {
                     Text("상황 선택", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Box {
                         Row(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown).clickable(enabled = !model.busy) { dropdown = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Text(model.category, Modifier.weight(1f), fontSize = 13.sp); Icon(Icons.Outlined.ExpandMore, null) }
-                        DropdownMenu(dropdown, { dropdown = false }) { listOf("전체", "연애", "금전", "취업", "학업", "건강", "인간관계").forEach { category -> DropdownMenuItem(text = { Text(category) }, onClick = { model.category = category; dropdown = false }) } }
+                        DropdownMenu(dropdown, { dropdown = false }) { listOf("전체", "연애", "금전", "취업", "학업", "건강", "인간관계").forEach { category -> DropdownMenuItem(text = { Text(category) }, onClick = { model.category = category; model.interpretationVisible=false; dropdown = false }) } }
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("나의 고민", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(model.concern, { if (it.length <= 200) model.concern = it }, Modifier.fillMaxWidth().heightIn(min = 130.dp), enabled = !model.busy, shape = RectangleShape,
+                    OutlinedTextField(model.concern, { if (it.length <= 200) {model.concern = it;model.interpretationVisible=false} }, Modifier.fillMaxWidth().heightIn(min = 130.dp), enabled = !model.busy, shape = RectangleShape,
                         placeholder = { Text("첫 면접을 앞두고 있는데, 준비한 말을 잘 전달하지 못할까 봐 걱정돼요.", fontSize = 12.sp) }, textStyle = TextStyle(color = Brown, fontSize = 14.sp),
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Brown, focusedBorderColor = Brown, unfocusedContainerColor = Color.White, focusedContainerColor = Color.White))
                     Text("${model.concern.length} / 200", Modifier.align(Alignment.End), fontSize = 10.sp)
@@ -264,7 +270,7 @@ private fun Home(model: AppModel, notice: (String) -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("지금의 마음", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     listOf(listOf("불안해요", "우울해요"), listOf("답답해요", "용기가 필요해요")).forEach { pair -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        pair.forEach { mood -> Row(Modifier.weight(1f).background(if (model.mood == mood) Red else Color.White).border(.7.dp, Brown).clickable(enabled = !model.busy) { model.mood = mood }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        pair.forEach { mood -> Row(Modifier.weight(1f).background(if (model.mood == mood) Red else Color.White).border(.7.dp, Brown).clickable(enabled = !model.busy) { model.mood = mood;model.interpretationVisible=false }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             val color = if (model.mood == mood) Color.White else Brown
                             Icon(if (model.mood == mood) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked, null, Modifier.size(15.dp), tint = color)
                             Text(mood, Modifier.padding(start = 6.dp), color = color, fontSize = 11.sp)

@@ -34,11 +34,13 @@ internal data class Charm(
     val pattern: String = "해", val frame: String = "두 줄", val theme: String = "cream",
     val recipient: String = "", val message: String = "", val advice: String = "", val concern: String = "",
     val luckyColor: String = "초록", val score: Int = 0, val demo: Boolean = false,
+    val dayMessage: String = "", val actionAdvice: String = "", val imageUrl: String = "", val serverStored: Boolean = false,
 ) {
     fun json() = JSONObject().apply {
         put("id", id); put("date", date); put("text", text); put("pattern", pattern); put("frame", frame)
         put("theme", theme); put("recipient", recipient); put("message", message); put("advice", advice)
         put("luckyColor", luckyColor); put("score", score); put("demo", demo); put("concern", concern)
+        put("dayMessage", dayMessage); put("actionAdvice", actionAdvice)
         // SCR 4: persist a snapshot only when the user explicitly saves this charm.
     }
     companion object {
@@ -48,7 +50,13 @@ internal data class Charm(
             theme = json.optString("theme", "cream"), recipient = json.optString("recipient"),
             message = json.optString("message"), advice = json.optString("advice"), concern = json.optString("concern"), luckyColor = json.optString("luckyColor", "초록"), score = json.optInt("score"),
             demo = json.optBoolean("demo"),
+            dayMessage = json.optString("dayMessage"), actionAdvice = json.optString("actionAdvice"),
         )
+        fun fromServer(json: JSONObject) = Charm(id=json.getString("amulet_id"), date=json.getString("created_date"),
+            text="", message=json.getString("fortune_summary"), concern=json.getString("record"),
+            dayMessage=json.getString("day_message"), actionAdvice=json.getString("action_advice"),
+            advice=json.getString("day_message")+"\n"+json.getString("action_advice"),
+            luckyColor=json.getString("lucky_color"), imageUrl=json.optString("image_url"), serverStored=true)
     }
 }
 
