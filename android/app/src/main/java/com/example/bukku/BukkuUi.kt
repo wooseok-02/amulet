@@ -36,8 +36,6 @@ internal val Serif = FontFamily(Font(R.font.noto_serif_kr))
 
 @Composable
 internal fun BukkuUi(model: AppModel) {
-    var settings by remember { mutableStateOf(false) }
-    var serverInput by remember { mutableStateOf(model.server) }
     var notice by remember { mutableStateOf("") }
     BackHandler(enabled = model.editorStep > 0) { model.editorStep -= 1 }
     MaterialTheme(colorScheme = lightColorScheme(primary = Brown, background = Cream, surface = Color.White, onSurface = Brown, onBackground = Brown, error = Red)) {
@@ -57,24 +55,18 @@ internal fun BukkuUi(model: AppModel) {
                     }
                     model.restoreFailed -> Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text("자동 로그인에 연결이 필요해요", fontFamily = Serif, fontSize = 24.sp)
-                        Text("저장된 로그인 정보는 유지됩니다. 인터넷 연결과 서버 주소를 확인하고 다시 시도해 주세요.")
+                        Text("저장된 로그인 정보는 유지됩니다. 인터넷 연결을 확인하고 잠시 후 다시 시도해 주세요.")
                         Action("다시 시도", false) { model.restore() }
-                        TextButton(onClick = { serverInput = model.server; settings = true }) { Text("서버 설정") }
                         TextButton(onClick = { model.logout() }) { Text("로그인 정보 지우기") }
                     }
                     model.editorStep > 0 -> CharmEditor(model)
-                    model.page == "account" -> Account(model) { serverInput = model.server; settings = true }
+                    model.page == "account" -> Account(model)
                     model.page == "library" -> ArchiveScreen(model)
                     model.friendMode -> FriendFlow(model)
                     else -> Home(model) { notice = it }
                 }
             }
         }
-        if (settings) AlertDialog(onDismissRequest = { settings = false }, title = { Text("서버 설정") },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("백엔드 팀에서 받은 HTTPS 서버 주소를 입력해 주세요. 서버를 변경하면 저장된 로그인 정보가 삭제됩니다.")
-                OutlinedTextField(serverInput, { serverInput = it }, singleLine = true, placeholder = { Text("https://your-server.onrender.com") })
-            } }, confirmButton = { TextButton(onClick = { if (model.saveServer(serverInput)) settings = false }) { Text("저장") } }, dismissButton = { TextButton(onClick = { settings = false }) { Text("취소") } })
         if (notice.isNotBlank()) AlertDialog(onDismissRequest = { notice = "" }, title = { Text("안내") }, text = { Text(notice) }, confirmButton = { TextButton(onClick = { notice = "" }) { Text("확인") } })
     }
 }
@@ -187,7 +179,7 @@ internal fun Picker(label: String, value: String, hint: String, icon: ImageVecto
 }
 
 @Composable
-private fun Account(model: AppModel, settings: () -> Unit) {
+private fun Account(model: AppModel) {
     val context = LocalContext.current; val form = model.form
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         if (model.loggedIn || model.preview) ProfileScreen(model) else {
@@ -229,7 +221,6 @@ private fun Account(model: AppModel, settings: () -> Unit) {
         }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.Center) {
-            TextButton(onClick = settings, enabled = !model.busy) { Text("서버 설정", fontSize = 11.sp) }
             if (!model.loggedIn && !model.preview) TextButton(onClick = { model.showPreview() }, enabled = !model.busy) { Text("디자인 미리보기", fontSize = 11.sp) }
         }
     }

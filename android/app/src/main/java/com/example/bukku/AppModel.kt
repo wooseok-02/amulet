@@ -60,7 +60,6 @@ internal class SessionStore(context: Context, prefsName: String = "session", pri
 
 internal class ApiClient(private val base: String) {
     suspend fun request(path: String, body: JSONObject? = null, token: String? = null): JSONObject = withContext(Dispatchers.IO) {
-        if (base.isBlank()) throw ApiFailure(0, "내 정보의 서버 설정에서 백엔드 주소를 입력해 주세요.")
         val connection = URI(base.trimEnd('/') + path).toURL().openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 15000
@@ -116,11 +115,10 @@ internal data class SignupForm(
 }
 
 internal class AppModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = application.getSharedPreferences("config", Context.MODE_PRIVATE)
     private val store = SessionStore(application)
     private val refreshLock = Mutex()
     private var session: JSONObject? = null
-    var server by mutableStateOf(prefs.getString("server", "").orEmpty().ifBlank { "https://amulet-api.onrender.com" }); private set
+    val server: String = "https://amulet-api.onrender.com"
     var page by mutableStateOf("account")
     var signup by mutableStateOf(false)
     var form by mutableStateOf(SignupForm())
@@ -185,16 +183,6 @@ internal class AppModel(application: Application) : AndroidViewModel(application
             message = error.message ?: "인터넷 연결을 확인해 주세요."
         } finally { restoring = false }
         if (loggedIn) loadFortune()
-    }
-    fun saveServer(value: String): Boolean {
-        if (busy || restoring) return false
-        val uri = runCatching { URI(value.trim().trimEnd('/')) }.getOrNull()
-        if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank() || uri.userInfo != null || uri.query != null || uri.fragment != null) {
-            message = "https://로 시작하는 서버 주소를 입력해 주세요."; return false
-        }
-        val normalized = uri.toString().trimEnd('/')
-        if (normalized != server) { reset(); server = normalized; prefs.edit().putString("server", server).apply() }
-        message = "서버 주소를 저장했습니다."; return true
     }
     fun showPreview() { if (!busy && !restoreFailed) { preview = true; page = "home"; fortune = sampleFortune(); message = ""; reloadArchive() } }
     fun switchAuth() { if (!busy) { signup = !signup; form = SignupForm(); errors = emptyMap(); message = "" } }
@@ -298,7 +286,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
             if (wasLoggedIn) reset()
             message = if (wasLoggedIn) "로그인 정보가 만료되었습니다. 다시 로그인해 주세요." else "이메일 또는 비밀번호가 올바르지 않습니다."
         }
-        else message = if (error is ApiFailure) error.message.orEmpty() else "연결에 실패했습니다. 인터넷 연결과 서버 주소를 확인해 주세요."
+        else message = if (error is ApiFailure) error.message.orEmpty() else "연결에 실패했습니다. 인터넷 연결을 확인하고 잠시 후 다시 시도해 주세요."
     }
     private fun runAction(action: suspend () -> Unit) {
         if (busy) return

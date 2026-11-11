@@ -22,7 +22,7 @@ Android 코드는 `android/`에 있으며 단순한 Compose → AppModel(ViewMod
 
 ## API 및 미리보기
 
-기본 서버는 배포 문서의 `https://amulet-api.onrender.com`이며 내 정보 → 서버 설정에서 변경할 수 있다.
+서버는 배포 문서의 `https://amulet-api.onrender.com`으로 고정한다. 사용자가 주소를 입력하는 화면은 제거했으며 이전 버전에 저장된 사용자 지정 주소도 사용하지 않는다.
 `/auth/signup`, `/auth/login`, `/auth/refresh`, `/fortune/today`, `/fortune/interpret`를 호출한다.
 친구 흐름은 `/fortune/friend/today`, `/fortune/friend/interpret`를 호출한다. 친구 이름과 관계는 서버 요청에 포함하지 않는다.
 공유는 PNG 파일과 Android 공유 시트를 사용한다. 실제 전송은 사용자가 수신 앱에서 완료한다.
