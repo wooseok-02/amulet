@@ -1,3 +1,6 @@
 .env
 /.env
 venv/
+# Track distributable APK files
+!/releases/
+!/releases/*.apk
