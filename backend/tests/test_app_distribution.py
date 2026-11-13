@@ -11,6 +11,13 @@ def test_unconfigured_distribution_is_json_only():
         response = client.get('/share/' + 'a' * 43)
         assert response.headers['content-type'].startswith('application/json')
         assert response.json() == {'apk_available': False, 'download_url': None}
+        page = client.get('/share/' + 'a' * 43, headers={'accept': 'text/html'})
+        assert page.headers['content-type'].startswith('text/html')
+        assert '친구가 보낸 부적을' in page.text
+        assert '/app/install' in page.text
+        install_page = client.get('/install')
+        assert install_page.status_code == 200
+        assert install_page.headers['content-type'].startswith('text/html')
         assert client.get('/app/download').status_code == 503
         assert client.get('/.well-known/assetlinks.json').status_code == 503
         assert client.get('/share/bad').status_code == 404
