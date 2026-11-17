@@ -21,7 +21,7 @@ class MyProfileResponse(BaseModel):
     email: str
     birthDate: date
     calendarType: Literal["SOLAR", "LUNAR"]
-    isLeapMonth: bool | None
+    isLeapMonth: bool
     birthTime: time | None
     gender: Literal["MALE", "FEMALE"]
 
@@ -56,7 +56,7 @@ def get_me(auth: AuthenticatedSupabase = Depends(get_authenticated_supabase)) ->
         email=auth.email,
         birthDate=profile["birth_date"],
         calendarType=profile["calendar_type"],
-        isLeapMonth=profile["is_leap_month"],
+        isLeapMonth=bool(profile["is_leap_month"]),
         birthTime=profile["birth_time"],
         gender=profile["gender"],
     )

@@ -82,10 +82,10 @@ def headers(token: str) -> dict[str, str]:
 
 @pytest.mark.parametrize(
     ("calendar", "leap", "expected"),
-    [("SOLAR", None, None), ("LUNAR", False, False), ("LUNAR", True, True)],
+    [("SOLAR", None, False), ("LUNAR", False, False), ("LUNAR", True, True)],
 )
 def test_get_me_returns_calendar_and_birth_details(
-    supabase: Mock, calendar: str, leap: bool | None, expected: bool | None,
+    supabase: Mock, calendar: str, leap: bool | None, expected: bool,
 ) -> None:
     supabase.profiles["user-a"]["calendar_type"] = calendar
     supabase.profiles["user-a"]["is_leap_month"] = leap

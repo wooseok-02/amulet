@@ -103,7 +103,8 @@ Android 앱은 로그인 또는 회원가입 성공 시 두 토큰을 안전한 
 `GET /api/v1/me`는 `name`, `email`, `birthDate`(`YYYY-MM-DD`),
 `calendarType`(`SOLAR`/`LUNAR`), `isLeapMonth`, `birthTime`(`HH:mm` 또는
 `null`), `gender`(`MALE`/`FEMALE`)를 반환한다. 생년월일·성별은 필수다.
-`isLeapMonth`는 양력일 때 `null`, 음력 평달은 `false`, 음력 윤달은 `true`다.
+`isLeapMonth`는 양력·음력 평달일 때 `false`, 음력 윤달은 `true`다.
+양력의 DB 값 `NULL`은 API에서 `false`로 변환한다.
 프로필과 이메일은 각각 본인 RLS 조회와 Supabase Auth 사용자 정보에서 읽는다.
 인증이 없거나 무효인 토큰은 401이다. 로그아웃 실패는 204로 처리하지 않는다.
 
