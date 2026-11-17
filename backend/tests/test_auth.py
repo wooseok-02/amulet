@@ -61,6 +61,17 @@ def signup_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
+@pytest.mark.parametrize("missing_field", ["birth_date", "gender"])
+def test_signup_requires_birth_date_and_gender(mocked_auth: Mock, missing_field: str) -> None:
+    payload = signup_payload()
+    del payload[missing_field]
+
+    response = client.post("/auth/signup", json=payload)
+
+    assert response.status_code == 422
+    mocked_auth.sign_up.assert_not_called()
+
+
 # 회원가입 성공 시 세션을 반환하고 프로필 정보를 Supabase에 전달하는지 확인한다.
 def test_signup_returns_session_and_sends_profile_metadata(mocked_auth: Mock) -> None:
     mocked_auth.sign_up.return_value = auth_response()

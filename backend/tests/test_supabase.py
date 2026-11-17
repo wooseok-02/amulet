@@ -12,7 +12,11 @@ from app.supabase import (
 
 # Supabase URL과 Publishable Key가 모두 필요함을 확인한다.
 def test_get_supabase_credentials_requires_both_values() -> None:
-    settings = Settings(_env_file=None)
+    settings = Settings(
+        supabase_url=None,
+        supabase_publishable_key=None,
+        _env_file=None,
+    )
 
     with pytest.raises(SupabaseConfigurationError):
         get_supabase_credentials(settings)

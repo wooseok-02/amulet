@@ -99,8 +99,9 @@ def test_interpret_concern_returns_two_lines(
 def test_authenticated_request_sets_token_on_postgrest() -> None:
     supabase = Mock()
     supabase.auth.get_user.return_value = SimpleNamespace(
-        user=SimpleNamespace(id="user-123")
+        user=SimpleNamespace(id="user-123", email="user@example.com")
     )
+    supabase.rpc.return_value.execute.return_value.data = True
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer",
         credentials="access-token",
@@ -111,3 +112,4 @@ def test_authenticated_request_sets_token_on_postgrest() -> None:
     assert result.user_id == "user-123"
     supabase.auth.get_user.assert_called_once_with("access-token")
     supabase.postgrest.auth.assert_called_once_with("access-token")
+    supabase.rpc.assert_called_once_with("is_current_auth_session_active")

@@ -87,6 +87,26 @@ Android 앱은 로그인 또는 회원가입 성공 시 두 토큰을 안전한 
 저장한다. `access_token` 만료 시 저장한 `refresh_token`을 `/auth/refresh`에
 전달하고, 응답으로 받은 두 토큰을 모두 교체한다.
 
+## 마이페이지 API
+
+마이페이지 API는 `Authorization: Bearer <accessToken>`으로 본인을 식별한다.
+사용자 ID를 요청에 보내지 않는다. 배포 전
+`supabase/migrations/202611170001_check_auth_session.sql`을 적용해야 한다.
+이 함수는 로그아웃으로 종료된 Supabase 세션의 access token이 만료 전이라도
+보호 API에서 거부되도록 현재 세션을 확인한다. 적용 전에는 보호 API가 502를 반환한다.
+
+| 메서드 | 경로 | 성공 응답 |
+| --- | --- | --- |
+| `GET` | `/api/v1/me` | 본인 프로필 JSON, 200 |
+| `POST` | `/api/v1/auth/logout` | 현재 세션만 종료, 본문 없는 204 |
+
+`GET /api/v1/me`는 `name`, `email`, `birthDate`(`YYYY-MM-DD`),
+`calendarType`(`SOLAR`/`LUNAR`), `isLeapMonth`, `birthTime`(`HH:mm` 또는
+`null`), `gender`(`MALE`/`FEMALE`)를 반환한다. 생년월일·성별은 필수다.
+`isLeapMonth`는 양력일 때 `null`, 음력 평달은 `false`, 음력 윤달은 `true`다.
+프로필과 이메일은 각각 본인 RLS 조회와 Supabase Auth 사용자 정보에서 읽는다.
+인증이 없거나 무효인 토큰은 401이다. 로그아웃 실패는 204로 처리하지 않는다.
+
 ## 오늘 운세 API
 
 두 API 모두 아래 인증 헤더가 필요하다.

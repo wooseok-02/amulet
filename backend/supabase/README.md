@@ -1,5 +1,19 @@
 # Supabase migrations
 
+## MyPage session validation — 2026-11-17 적용
+
+`migrations/202611170001_check_auth_session.sql`의 함수를 Supabase 프로젝트
+`amulet`(프로젝트 ID `lkpnjutpupgbnsbyfvbt`)의 SQL Editor에서 적용했다.
+`authenticated` 실행 권한은 `true`, `anon`은 `false`로 확인했다.
+SQL Editor 적용이므로 `supabase_migrations.schema_migrations` 이력은 기록하지 않았다.
+다른 환경에는 백엔드 배포보다 먼저 적용해야 한다. 함수는 요청 JWT의
+`session_id`와 `auth.uid()`가 `auth.sessions`의 활성 행과 일치하는지
+확인한다. `authenticated`만 실행할 수 있다. 로그아웃 API는 현재 세션만
+종료하며, 기존 access token은 공통 인증 의존성에서 401로 거부된다.
+
+적용 후 서로 다른 A·B 계정으로 `/api/v1/me`를 조회하고 A만 로그아웃한 다음,
+A 토큰은 401, B 토큰은 200인지 실제 환경에서 확인한다.
+
 ## Applied migrations
 
 - `migrations/202610110001_create_profiles.sql` (`create_profiles`)

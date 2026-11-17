@@ -10,6 +10,7 @@ from app.app_distribution import router as app_distribution_router
 from app.amulet_upload_limit import AmuletUploadLimit
 from app.config import get_settings
 from app.fortune_api import router as fortune_router
+from app.mypage_api import router as mypage_router
 from app.supabase import SupabaseConfigurationError, check_supabase_connection
 
 settings = get_settings()
@@ -20,6 +21,7 @@ app = FastAPI(
 )
 app.include_router(auth_router)
 app.include_router(fortune_router)
+app.include_router(mypage_router)
 app.include_router(amulet_router)
 app.include_router(app_distribution_router)
 app.add_middleware(AmuletUploadLimit)

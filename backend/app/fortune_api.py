@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from postgrest.exceptions import APIError
 from supabase import AuthError, Client
 
 from app.config import Settings, get_settings
@@ -38,6 +39,7 @@ class AuthenticatedSupabase:
     user_id: str
     client: Client
     access_token: str = field(default="", repr=False)
+    email: str = ""
 
 
 @dataclass(frozen=True)
@@ -72,7 +74,24 @@ def get_authenticated_supabase(
         )
 
     client.postgrest.auth(token)
-    return AuthenticatedSupabase(user_id=response.user.id, client=client, access_token=token)
+    try:
+        session = client.rpc("is_current_auth_session_active").execute()
+    except APIError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="인증 세션을 확인하지 못했습니다.",
+        ) from error
+    if session.data is not True:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=INVALID_ACCESS_TOKEN_MESSAGE,
+        )
+    return AuthenticatedSupabase(
+        user_id=response.user.id,
+        client=client,
+        access_token=token,
+        email=response.user.email or "",
+    )
 
 
 def get_fortune_request_context(
