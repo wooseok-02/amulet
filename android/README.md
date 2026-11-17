@@ -73,6 +73,7 @@ Android 실서버 시험은 `StorageIntegrationTest#liveStorageAndSharingContrac
 
 관련 요구사항: 상위 `docs/AUTH_INTEGRATION.md`, `docs/SCR_3.md`, `docs/SCR_1.md`, `docs/SCR_4.md`, `docs/FIGMA_UI_IMPLEMENTATION.md`.
 마이페이지 단위 테스트는 `MyPageTest`·`MyPageApiTest`, Android 화면 테스트는 `MyPageUiTest`다. 화면 테스트는 모의 API로 상태를 제어하며, 실서버 토큰 무효화 성공을 대신하지 않는다.
+별도 `MyPageLiveIntegrationTest`는 `-e bukkuLiveMyPage true`를 명시한 경우에만 실제 서버에 테스트 계정 3개를 생성하고 release 앱의 로그인·회원정보 표시·로그아웃 및 토큰 무효화를 검증한다. 실행 결과와 범위는 `docs/MYPAGE_LIVE_INTEGRATION_2026-11-17.md`를 참고한다.
 폰트는 Noto Serif KR이며 라이선스는 `FONT-LICENSE.txt`에 있다.
 로고는 사용자가 제공한 캡처의 로고 영역을 화면에서 표시한다. 원본 로고와 정확한 Figma 폰트 파일을 받으면 교체할 수 있다.
 
