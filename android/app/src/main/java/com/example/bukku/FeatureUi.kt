@@ -63,29 +63,46 @@ internal fun FeatureHero(eyebrow: String, title: String, description: String, ac
 
 @Composable
 internal fun ProfileScreen(model: AppModel) {
-    val profile = model.profile
+    LaunchedEffect(model.loggedIn, model.preview) { model.loadProfile() }
+    DisposableEffect(model) { onDispose { model.closeProfile() } }
+    ProfileContent(
+        if (model.preview) MyPageState(profile = UserProfile.preview) else model.profileState,
+        model.preview, model.busy, model::loadProfile, model::logout,
+    )
+}
+
+@Composable
+internal fun ProfileContent(state: MyPageState, preview: Boolean, busy: Boolean, retry: () -> Unit, logout: () -> Unit) {
     FeatureHero("MY FORTUNE PROFILE", "내 정보", "나의 운세와 부적에 사용되는 기본 정보를 확인할 수 있어요.")
     Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Icon(Icons.Outlined.AccountCircle, "프로필", Modifier.size(48.dp), tint = Brown)
         Eyebrow("오늘도 좋은 흐름과 함께해요")
-        val name = profile.optString("name").ifBlank { "행운" }
-        Text(if (name.endsWith("님")) name else "${name}님", fontFamily = Serif, fontSize = 30.sp)
-        Text(if (model.preview) "preview@example.com" else model.email, fontSize = 13.sp)
-        Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown)) {
-            val lunar = profile.optString("calendar_type") == "LUNAR"
-            listOf(
-                "생년월일" to profile.optString("birth_date").ifBlank { "미등록" },
-                "달력 기준" to if (lunar) "음력 · ${if (profile.optBoolean("is_leap_month")) "윤달" else "평달"}" else "양력",
-                "태어난 시간" to profile.optString("birth_time").takeIf { it.isNotBlank() && it != "null" }?.take(5).orEmpty().ifBlank { "모름" },
-                "성별" to when (profile.optString("gender")) { "MALE" -> "남성"; "FEMALE" -> "여성"; else -> "미등록" },
-            ).forEach { (label, value) ->
-                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(label, fontSize = 12.sp); Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        if (state.loading) {
+            LinearProgressIndicator(Modifier.fillMaxWidth(), color = Red)
+            Text("회원정보를 불러오고 있어요.", fontSize = 13.sp)
+        } else state.profile?.let { profile ->
+            Text(profile.name, fontFamily = Serif, fontSize = 30.sp)
+            Text(profile.email, fontSize = 13.sp)
+            Column(Modifier.fillMaxWidth().background(Color.White).border(.7.dp, Brown)) {
+                listOf(
+                    "생년월일" to profile.birthDate,
+                    "달력 기준" to profile.calendarLabel,
+                    "태어난 시간" to profile.timeLabel,
+                    "성별" to profile.genderLabel,
+                ).forEach { (label, value) ->
+                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(label, fontSize = 12.sp); Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                    HorizontalDivider(color = Brown.copy(alpha = .2f))
                 }
-                HorizontalDivider(color = Brown.copy(alpha = .2f))
             }
+            Text("이 정보로 운세를 살펴보고 있어요.\n생년월일과 태어난 시간을 바탕으로 오늘의 흐름을 안내합니다.", fontSize = 12.sp, lineHeight = 22.sp)
         }
-        Text("이 정보로 운세를 살펴보고 있어요.\n생년월일과 태어난 시간을 바탕으로 오늘의 흐름을 안내합니다.", fontSize = 12.sp, lineHeight = 22.sp)
-        Action(if (model.preview) "미리보기 종료" else "로그아웃", model.busy) { model.logout() }
+        if (state.error.isNotBlank()) {
+            Text(state.error, color = Red, fontSize = 13.sp)
+            if (state.profile == null) Action("다시 불러오기", busy || state.loading, retry)
+        }
+        Action(if (preview) "미리보기 종료" else "로그아웃", busy || state.loggingOut, logout)
     }
 }
 

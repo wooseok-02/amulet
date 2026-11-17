@@ -7,7 +7,7 @@ Android Studio에서 이 `android` 폴더를 연다. 저장소 전체 문서와 
 - Kotlin 2.4.20 / Jetpack Compose
 - AGP 9.2.0 / Gradle 9.4.1 / JDK 17
 - Compile / Target SDK 36, Minimum SDK 26
-- `com.example.bukku`를 이번 0.2.0 배포 APK에서도 유지한다.
+- `com.example.bukku`를 0.2.1 배포 APK에서도 유지한다.
 
 ## 실행
 
@@ -25,6 +25,7 @@ Android Studio에서 이 `android` 폴더를 연다. 저장소 전체 문서와 
 - 앱 재실행 시 토큰을 갱신하고 인증 거절이면 로그인 화면으로 이동한다. 통신 오류는 토큰을 유지하고 재시도를 제공한다.
 - `GET /fortune/today`, `POST /fortune/interpret` 연결 및 200자 고민 입력, 7개 상황, 4개 마음 상태.
 - 친구 운세와 AI 응원 API 연결, 친구 정보/상황 입력, 부적 꾸미기와 완성 화면.
+- 마이페이지 `GET /api/v1/me` 조회와 `POST /api/v1/auth/logout` 연결. 달력 기준·윤달·시간 모름 표시, 조회 중/오류 시 이전 사용자 정보 숨김, 중복 로그아웃 방지 및 204 이후 세션 삭제. 상세 계약과 실서버 미배포 상태는 `docs/SCR_5.md` 참조.
 - 문양/테두리 변경, PNG multipart 서버 저장, 서버 월별·날짜별 보관함 및 원격 이미지 상세. 디자인 미리보기만 기기 저장을 사용한다.
 - 월별 캘린더, 날짜별 팝업과 빈 날짜 안내, 부적의 3D 뒤집기 및 당시 기록 확인.
 - 월간 해석과 행운일은 API가 없어 예시로 표시한다. 알림은 기존 안내를 제공한다.
@@ -71,6 +72,7 @@ Android 실서버 시험은 `StorageIntegrationTest#liveStorageAndSharingContrac
 실서버 시험은 테스트 계정/부적을 생성한다. 계정 삭제 API는 이번 범위에 없으며 테스트 데이터를 자동 삭제하지 않는다. 비밀번호와 토큰은 보고서에 기록하지 않는다.
 
 관련 요구사항: 상위 `docs/AUTH_INTEGRATION.md`, `docs/SCR_3.md`, `docs/SCR_1.md`, `docs/SCR_4.md`, `docs/FIGMA_UI_IMPLEMENTATION.md`.
+마이페이지 단위 테스트는 `MyPageTest`·`MyPageApiTest`, Android 화면 테스트는 `MyPageUiTest`다. 화면 테스트는 모의 API로 상태를 제어하며, 실서버 토큰 무효화 성공을 대신하지 않는다.
 폰트는 Noto Serif KR이며 라이선스는 `FONT-LICENSE.txt`에 있다.
 로고는 사용자가 제공한 캡처의 로고 영역을 화면에서 표시한다. 원본 로고와 정확한 Figma 폰트 파일을 받으면 교체할 수 있다.
 

@@ -104,7 +104,8 @@ internal class AppModel(application: Application) : AndroidViewModel(application
     var signup by mutableStateOf(false)
     var form by mutableStateOf(SignupForm())
     var errors by mutableStateOf(emptyMap<String, String>()); private set
-    var busy by mutableStateOf(false); private set
+    private var actionBusy by mutableStateOf(false)
+    val busy: Boolean get() = actionBusy || myPage.state.loggingOut
     var restoring by mutableStateOf(true); private set
     var restoreFailed by mutableStateOf(false); private set
     var loggedIn by mutableStateOf(false); private set
@@ -130,14 +131,13 @@ internal class AppModel(application: Application) : AndroidViewModel(application
     private val charmStore = CharmStore(application)
     var archived by mutableStateOf(emptyList<Charm>()); private set
     private val archiveOwner: String get() = "$server|${session?.optString("user_id") ?: "preview"}"
-    val email: String get() = session?.optString("email").orEmpty()
-    val profile: JSONObject get() {
-        if (preview) return JSONObject().put("name", "행운님").put("birth_date", "2000-01-02").put("calendar_type", "SOLAR").put("birth_time", "13:30").put("gender", "FEMALE")
-        return runCatching {
-            val encoded = session?.getString("access_token")?.split('.')?.get(1) ?: return@runCatching JSONObject()
-            JSONObject(String(Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING), Charsets.UTF_8)).optJSONObject("user_metadata") ?: JSONObject()
-        }.getOrDefault(JSONObject())
-    }
+    private val myPage = MyPageController(viewModelScope, RemoteProfileApi(ApiClient(server)),
+        accessToken = { session?.optString("access_token") },
+        onExpired = { reset(); message = "로그인 정보가 만료되었습니다. 다시 로그인해 주세요." },
+        onLoggedOut = { reset(); message = "" })
+    val profileState: MyPageState get() = myPage.state
+    fun loadProfile() { if (loggedIn && !preview) myPage.load() }
+    fun closeProfile() { if (!myPage.state.loggingOut) myPage.clear() }
     init { restore() }
     private val refreshedImages=mutableSetOf<String>()
     fun refreshImage(id:String) { if(refreshedImages.add(id))openArchiveItem(id) }
@@ -168,6 +168,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         accept(api().request("/auth/refresh", JSONObject().put("refresh_token", value.getString("refresh_token"))))
     }
     private fun reset() {
+        myPage.clear()
         store.clear(); session = null; loggedIn = false; preview = false
         fortune = null; interpretation = null; concern = ""; form = SignupForm(); errors = emptyMap()
         category = "전체"; mood = "불안해요"; signup = false; page = "account"; restoreFailed = false
@@ -179,7 +180,12 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         archiveLoading=false; dateLoading=false; detailLoading=false; archiveError=""; detailError=""
         openedDate=null; dateItems=emptyList(); detail=null; shareUrl=""; uploadUncertain=false
     }
-    fun logout() { if (!busy) { reset(); message = "" } }
+    fun logout() {
+        if (busy) return
+        if (preview) { reset(); message = "" }
+        else if (loggedIn) myPage.logout()
+    }
+    fun forgetSession() { if (!busy) { reset(); message = "" } }
     fun restore() = viewModelScope.launch {
         restoring = true; restoreFailed = false; message = ""
         try {
@@ -204,7 +210,7 @@ internal class AppModel(application: Application) : AndroidViewModel(application
         val body = if (isSignup) form.json() else JSONObject().put("email", form.email.trim().lowercase()).put("password", form.password)
         runAction {
             val response = api().request(if (isSignup) "/auth/signup" else "/auth/login", body)
-            accept(response); form = SignupForm(); preview = false; page = "home"
+            myPage.clear(); accept(response); form = SignupForm(); preview = false; page = "home"
             fortune = null; interpretation = null
             try { fortune = authorized("/fortune/today") } catch (error: Exception) {
                 handle(error)
@@ -415,10 +421,10 @@ internal class AppModel(application: Application) : AndroidViewModel(application
     }
     private fun runAction(action: suspend () -> Unit) {
         if (busy) return
-        busy = true; message = ""
+        actionBusy = true; message = ""
         viewModelScope.launch {
             try { action() } catch(error:CancellationException){throw error} catch (error: Exception) { handle(error) } finally {
-                busy = false
+                actionBusy = false
                 if(incomingGift && loggedIn && !restoring && pendingGift.isNotBlank())claimGift()
             }
         }

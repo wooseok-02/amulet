@@ -30,17 +30,21 @@ internal class ApiClient(private val base: String) {
     suspend fun request(path: String, body: JSONObject? = null, token: String? = null): JSONObject =
         exchange(path, body?.toString()?.toByteArray(Charsets.UTF_8), "application/json; charset=utf-8", token)
 
+    suspend fun logout(token: String) {
+        exchange("/api/v1/auth/logout", null, "application/json", token, method = "POST", noContent = true)
+    }
+
     suspend fun upload(path: String, upload: MultipartUpload, token: String): JSONObject {
         val boundary = "Bukku-${UUID.randomUUID()}"
         return exchange(path, upload.encode(boundary), "multipart/form-data; boundary=$boundary", token)
     }
 
-    private suspend fun exchange(path: String, body: ByteArray?, contentType: String, token: String?): JSONObject = withContext(Dispatchers.IO) {
+    private suspend fun exchange(path: String, body: ByteArray?, contentType: String, token: String?, method: String = if (body == null) "GET" else "POST", noContent: Boolean = false): JSONObject = withContext(Dispatchers.IO) {
         val connection = URI(base.trimEnd('/') + path).toURL().openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 15000; connection.readTimeout = 90000
             connection.instanceFollowRedirects = false
-            connection.requestMethod = if(body == null) "GET" else "POST"
+            connection.requestMethod = method
             connection.setRequestProperty("Accept", "application/json")
             token?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
             body?.let {
@@ -52,6 +56,10 @@ internal class ApiClient(private val base: String) {
             val raw = (if(status in 200..299)connection.inputStream else connection.errorStream)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             val json = runCatching { JSONObject(raw) }.getOrNull()
             if(status !in 200..299)throw ApiFailure(status, json?.optString("detail")?.takeIf { !it.startsWith("[") && it.isNotBlank() } ?: "요청을 처리하지 못했습니다. ($status)")
+            if (noContent) {
+                if (status != 204 || raw.isNotEmpty()) throw ApiFailure(502, "로그아웃 응답을 확인하지 못했습니다. 다시 시도해 주세요.")
+                return@withContext JSONObject()
+            }
             json ?: throw ApiFailure(502, "서버 응답 형식이 올바르지 않습니다.")
         } finally { connection.disconnect() }
     }

@@ -21,8 +21,8 @@ android {
         applicationId = "com.example.bukku"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
         manifestPlaceholders["shareHost"] = shareHost
         manifestPlaceholders["kakaoScheme"] = if(kakaoKey.isBlank())"kakao-bukku-unconfigured" else "kakao$kakaoKey"
         buildConfigField("String", "SHARE_HOST", "\"$shareHost\"")

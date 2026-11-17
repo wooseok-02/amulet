@@ -62,7 +62,7 @@ internal fun BukkuUi(model: AppModel) {
                         Text("자동 로그인에 연결이 필요해요", fontFamily = Serif, fontSize = 24.sp)
                         Text("저장된 로그인 정보는 유지됩니다. 인터넷 연결을 확인하고 잠시 후 다시 시도해 주세요.")
                         Action("다시 시도", false) { model.restore() }
-                        TextButton(onClick = { model.logout() }) { Text("로그인 정보 지우기") }
+                        TextButton(onClick = { model.forgetSession() }) { Text("로그인 정보 지우기") }
                     }
                     model.editorStep > 0 -> CharmEditor(model)
                     model.page == "account" -> Account(model)
